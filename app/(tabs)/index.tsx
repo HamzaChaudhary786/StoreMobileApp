@@ -1,98 +1,150 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import { api } from '../../lib/api';
+import { Colors } from '../../constants/theme';
+import { TrendingUp, Users, Package, AlertCircle } from 'lucide-react-native';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function DashboardScreen() {
+  const [stats, setStats] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
-export default function HomeScreen() {
+  const fetchStats = async () => {
+    try {
+      // Assuming you have an endpoint for high-level stats
+      // If not, we could fetch separate data (products, orders, customers)
+      const response = await api.get('/admin/stats');
+      setStats(response.data);
+    } catch (error) {
+      console.error('Failed to fetch stats', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    fetchStats().then(() => setRefreshing(false));
+  }, []);
+
+  const StatCard = ({ title, value, icon: Icon, color }: any) => (
+    <View style={styles.card}>
+      <View style={[styles.iconContainer, { backgroundColor: `${color}20` }]}>
+        <Icon size={24} color={color} />
+      </View>
+      <View>
+        <Text style={styles.cardTitle}>{title}</Text>
+        <Text style={styles.cardValue}>{value}</Text>
+      </View>
+    </View>
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <ScrollView
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
+    >
+      <View style={styles.content}>
+        <Text style={styles.sectionTitle}>Overview</Text>
+        
+        <View style={styles.grid}>
+          <StatCard
+            title="Total Sales"
+            value={`₨${stats?.totalSales?.toFixed(0) || '0'}`}
+            icon={TrendingUp}
+            color={Colors.dark.amber}
+          />
+          <StatCard
+            title="Total Customers"
+            value={stats?.totalCustomers || '0'}
+            icon={Users}
+            color="#6366f1"
+          />
+          <StatCard
+            title="Active Inventory"
+            value={stats?.totalProducts || '0'}
+            icon={Package}
+            color="#10b981"
+          />
+          <StatCard
+            title="Low Stock Items"
+            value={stats?.lowStockCount || '0'}
+            icon={AlertCircle}
+            color={Colors.dark.rose}
+          />
+        </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <Text style={[styles.sectionTitle, { marginTop: 30 }]}>Recent Activities</Text>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No recent activities to show</Text>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  container: {
+    flex: 1,
+    backgroundColor: '#0c0c14',
+  },
+  content: {
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 20,
+  },
+  grid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 15,
+  },
+  card: {
+    width: '47%',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    gap: 15,
+  },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
     alignItems: 'center',
-    gap: 8,
+    justifyContent: 'center',
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  cardTitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  cardValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: '#fff',
+    marginTop: 4,
+  },
+  emptyContainer: {
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderRadius: 20,
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  emptyText: {
+    color: 'rgba(255,255,255,0.3)',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

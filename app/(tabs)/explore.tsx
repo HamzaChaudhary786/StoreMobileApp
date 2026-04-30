@@ -1,112 +1,248 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity, Dimensions } from 'react-native';
+import { api } from '../../lib/api';
+import { Colors } from '../../constants/theme';
+import { TrendingUp, ShoppingBag, Users, DollarSign, ArrowUpRight, ArrowDownRight, Calendar } from 'lucide-react-native';
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+const { width } = Dimensions.get('window');
 
-export default function TabTwoScreen() {
+export default function ReportsScreen() {
+  const [stats, setStats] = useState<any>(null);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const fetchStats = async () => {
+    try {
+      const response = await api.get('/admin/stats');
+      setStats(response.data);
+    } catch (error) {
+      console.error('Failed to fetch stats', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true);
+    fetchStats().then(() => setRefreshing(false));
+  }, []);
+
+  const StatCard = ({ title, value, icon: Icon, color, trend }: any) => (
+    <View style={styles.statCard}>
+      <View style={[styles.iconBox, { backgroundColor: `${color}15` }]}>
+        <Icon size={22} color={color} />
+      </View>
+      <View>
+        <Text style={styles.statLabel}>{title}</Text>
+        <Text style={styles.statValue}>{value}</Text>
+        {trend && (
+          <View style={styles.trendRow}>
+            {trend > 0 ? <ArrowUpRight size={14} color="#10b981" /> : <ArrowDownRight size={14} color={Colors.dark.rose} />}
+            <Text style={[styles.trendText, { color: trend > 0 ? '#10b981' : Colors.dark.rose }]}>
+              {Math.abs(trend)}% vs last month
+            </Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
+    <ScrollView 
+      style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
+    >
+      <View style={styles.header}>
+        <Text style={styles.title}>Analytics</Text>
+        <TouchableOpacity style={styles.datePicker}>
+          <Calendar size={18} color={Colors.dark.amber} />
+          <Text style={styles.dateText}>This Month</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.grid}>
+        <StatCard 
+          title="Total Revenue" 
+          value={`₨${stats?.revenue?.toLocaleString() || '0'}`}
+          icon={DollarSign}
+          color={Colors.dark.amber}
+          trend={12}
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
+        <StatCard 
+          title="Total Sales" 
+          value={stats?.totalOrders || '0'}
+          icon={ShoppingBag}
+          color="#6366f1"
+          trend={8}
         />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+        <StatCard 
+          title="New Customers" 
+          value={stats?.totalCustomers || '0'}
+          icon={Users}
+          color="#10b981"
+          trend={15}
+        />
+        <StatCard 
+          title="Active Products" 
+          value={stats?.totalProducts || '0'}
+          icon={TrendingUp}
+          color="#ec4899"
+        />
+      </View>
+
+      <Text style={styles.sectionTitle}>Performance Overview</Text>
+      <View style={styles.chartPlaceholder}>
+        <View style={styles.chartBarGroup}>
+          {[40, 70, 45, 90, 65, 80, 50].map((h, i) => (
+            <View key={i} style={[styles.chartBar, { height: h }]} />
+          ))}
+        </View>
+        <View style={styles.chartLabels}>
+          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((l, i) => (
+            <Text key={i} style={styles.chartLabel}>{l}</Text>
+          ))}
+        </View>
+      </View>
+
+      <Text style={styles.sectionTitle}>Recent Insights</Text>
+      <View style={styles.insightCard}>
+        <Text style={styles.insightText}>
+          Your sales are up by <Text style={{ color: '#10b981', fontWeight: '800' }}>12%</Text> compared to last week. Most of the revenue is coming from <Text style={{ color: Colors.dark.amber, fontWeight: '800' }}>Grocery</Text> category.
+        </Text>
+      </View>
+      
+      <View style={{ height: 40 }} />
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    backgroundColor: '#0c0c14',
   },
-  titleContainer: {
+  header: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: 60,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#fff',
+  },
+  datePicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
     gap: 8,
+  },
+  dateText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  grid: {
+    padding: 20,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 15,
+  },
+  statCard: {
+    width: (width - 55) / 2,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  iconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 15,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 6,
+  },
+  trendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  trendText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#fff',
+    marginHorizontal: 20,
+    marginTop: 10,
+    marginBottom: 15,
+  },
+  chartPlaceholder: {
+    marginHorizontal: 20,
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    borderRadius: 24,
+    padding: 25,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
+  },
+  chartBarGroup: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: 100,
+    marginBottom: 15,
+  },
+  chartBar: {
+    width: 12,
+    backgroundColor: Colors.dark.amber,
+    borderRadius: 6,
+    opacity: 0.8,
+  },
+  chartLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 2,
+  },
+  chartLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.3)',
+    fontWeight: '700',
+  },
+  insightCard: {
+    marginHorizontal: 20,
+    backgroundColor: 'rgba(245,158,11,0.05)',
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.1)',
+  },
+  insightText: {
+    color: 'rgba(255,255,255,0.6)',
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: '500',
   },
 });

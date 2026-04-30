@@ -12,18 +12,22 @@ export const Colors = {
   light: {
     text: '#11181C',
     background: '#fff',
-    tint: tintColorLight,
+    tint: '#f59e0b',
     icon: '#687076',
     tabIconDefault: '#687076',
-    tabIconSelected: tintColorLight,
+    tabIconSelected: '#f59e0b',
+    amber: '#f59e0b',
+    rose: '#f43f5e',
   },
   dark: {
     text: '#ECEDEE',
-    background: '#151718',
-    tint: tintColorDark,
+    background: '#0c0c14',
+    tint: '#f59e0b',
     icon: '#9BA1A6',
     tabIconDefault: '#9BA1A6',
-    tabIconSelected: tintColorDark,
+    tabIconSelected: '#f59e0b',
+    amber: '#f59e0b',
+    rose: '#f43f5e',
   },
 };
 
