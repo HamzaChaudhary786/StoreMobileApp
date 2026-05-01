@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, FlatList, TextInput, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Alert } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TextInput, RefreshControl, TouchableOpacity, Modal, ActivityIndicator, Alert, Platform } from 'react-native';
 import { api } from '../../lib/api';
 import { Colors } from '../../constants/theme';
-import { Search, User, Phone, CreditCard, Plus, X, UserPlus } from 'lucide-react-native';
+import { Search, User, Phone, CreditCard, Plus, X, UserPlus, TrendingDown, Users, AlertCircle, ChevronRight } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function CustomersScreen() {
+  const router = useRouter();
   const [customers, setCustomers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [refreshing, setRefreshing] = useState(false);
@@ -55,38 +58,74 @@ export default function CustomersScreen() {
     }
   };
 
-  const filteredCustomers = customers.filter((c: { name: any; phone: any; }) =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.phone.includes(search)
+  const filteredCustomers = customers.filter((c: any) =>
+    (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (c.phone || '').includes(search)
   );
+
+  const totalOutstanding = customers.reduce((acc, c) => acc + (c.currentBalance || 0), 0);
+  const activeDebtors = customers.filter(c => (c.currentBalance || 0) > 0).length;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
-          <Search size={18} color="rgba(255,255,255,0.3)" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search customers..."
-            placeholderTextColor="rgba(255,255,255,0.3)"
-            value={search}
-            onChangeText={setSearch}
-          />
+        <View style={styles.searchSection}>
+          <View style={styles.searchContainer}>
+            <Search size={18} color="rgba(255,255,255,0.3)" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by name or phone..."
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              value={search}
+              onChangeText={setSearch}
+            />
+          </View>
+          <TouchableOpacity 
+            style={styles.addButton}
+            onPress={() => setModalVisible(true)}
+          >
+            <UserPlus size={24} color={Colors.dark.amber} />
+          </TouchableOpacity>
         </View>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={() => setModalVisible(true)}
-        >
-          <UserPlus size={24} color={Colors.dark.amber} />
-        </TouchableOpacity>
+
+        <View style={styles.statsContainer}>
+          <LinearGradient 
+            colors={['#f43f5e', '#e11d48']} 
+            style={styles.statCard}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <TrendingDown size={20} color="#fff" />
+            <View>
+              <Text style={styles.statValue}>₨{totalOutstanding.toLocaleString()}</Text>
+              <Text style={styles.statLabel}>Outstanding</Text>
+            </View>
+          </LinearGradient>
+
+          <LinearGradient 
+            colors={['#f59e0b', '#d97706']} 
+            style={styles.statCard}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <Users size={20} color="#fff" />
+            <View>
+              <Text style={styles.statValue}>{activeDebtors}</Text>
+              <Text style={styles.statLabel}>Active Debtors</Text>
+            </View>
+          </LinearGradient>
+        </View>
       </View>
 
       <FlatList
         data={filteredCustomers}
         keyExtractor={(item: { id: any; }) => item.id}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
-        renderItem={({ item }:any) => (
-          <TouchableOpacity style={styles.customerCard}>
+        renderItem={({ item }: { item: any }) => (
+          <TouchableOpacity 
+            style={styles.customerCard}
+            onPress={() => router.push(`/customer/${item?.id}` as any)}
+          >
             <View style={styles.avatarContainer}>
               <User size={24} color="#6366f1" />
             </View>
@@ -98,14 +137,21 @@ export default function CustomersScreen() {
               </View>
             </View>
             <View style={styles.balanceContainer}>
-              <Text style={styles.balanceLabel}>Balance</Text>
-              <Text style={[styles.balanceValue, item.currentBalance > 0 && { color: Colors.dark.rose }]}>
-                ₨{item.currentBalance.toFixed(0)}
+              <Text style={styles.balanceLabel}>Udhar Balance</Text>
+              <Text style={[styles.balanceValue, (item.currentBalance || 0) > 0 && { color: Colors.dark.rose }]}>
+                ₨{(item.currentBalance || 0).toLocaleString()}
               </Text>
             </View>
+            <ChevronRight size={18} color="rgba(255,255,255,0.1)" style={{ marginLeft: 10 }} />
           </TouchableOpacity>
         )}
         contentContainerStyle={styles.listContent}
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            <Users size={60} color="rgba(255,255,255,0.05)" />
+            <Text style={styles.emptyText}>No customers found</Text>
+          </View>
+        }
       />
 
       <Modal
@@ -178,10 +224,42 @@ const styles = StyleSheet.create({
     backgroundColor: '#0c0c14',
   },
   header: {
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    backgroundColor: '#151718',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    paddingBottom: 25,
+  },
+  searchSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
     gap: 12,
+  },
+  statsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 20,
+    gap: 12,
+  },
+  statValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#fff',
+  },
+  statLabel: {
+    fontSize: 10,
+    color: 'rgba(255,255,255,0.7)',
+    fontWeight: '700',
+    textTransform: 'uppercase',
   },
   searchContainer: {
     flex: 1,
@@ -320,5 +398,16 @@ const styles = StyleSheet.create({
     color: '#0a0a0f',
     fontSize: 16,
     fontWeight: '800',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 100,
+  },
+  emptyText: {
+    color: 'rgba(255,255,255,0.2)',
+    fontSize: 16,
+    fontWeight: '700',
+    marginTop: 15,
   },
 });

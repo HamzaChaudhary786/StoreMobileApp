@@ -28,7 +28,18 @@ export const Colors = {
     tabIconSelected: '#f59e0b',
     amber: '#f59e0b',
     rose: '#f43f5e',
+    indigo: '#6366f1',
+    emerald: '#10b981',
+    surface: '#151718',
+    border: 'rgba(255,255,255,0.08)',
   },
+  gradients: {
+    primary: ['#f59e0b', '#d97706'],
+    rose: ['#f43f5e', '#e11d48'],
+    indigo: ['#6366f1', '#4f46e5'],
+    emerald: ['#10b981', '#059669'],
+    surface: ['#1c1c24', '#0c0c14'],
+  }
 };
 
 export const Fonts = Platform.select({

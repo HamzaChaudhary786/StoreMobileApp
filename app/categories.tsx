@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, RefreshControl, Modal, ActivityIndicator, Alert, Platform } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, RefreshControl, Modal, ActivityIndicator, Alert, Platform, ScrollView } from 'react-native';
 import { api } from '../lib/api';
 import { Colors } from '../constants/theme';
-import { ChevronLeft, Layers, Plus, X, Search, Package, ChevronRight } from 'lucide-react-native';
+import { ChevronLeft, Layers, Plus, X, Search, Package, ChevronRight, ArrowRightLeft, Move } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function CategoriesScreen() {
   const router = useRouter();
@@ -11,9 +12,20 @@ export default function CategoriesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
-  const [modalVisible, setModalVisible] = useState(false);
+  
+  // Create Modal State
+  const [createModalVisible, setCreateModalVisible] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
   const [saving, setSaving] = useState(false);
+
+  // View Products Modal State
+  const [selectedCategory, setSelectedCategory] = useState<any>(null);
+  const [categoryProducts, setCategoryProducts] = useState<any[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(false);
+
+  // Move Modal State
+  const [moveModalVisible, setMoveModalVisible] = useState(false);
+  const [productToMove, setProductToMove] = useState<any>(null);
 
   const fetchCategories = async () => {
     try {
@@ -21,7 +33,6 @@ export default function CategoriesScreen() {
       setCategories(response.data);
     } catch (error) {
       console.error('Failed to fetch categories', error);
-      Alert.alert('Error', 'Failed to fetch categories');
     } finally {
       setLoading(false);
     }
@@ -41,18 +52,43 @@ export default function CategoriesScreen() {
       Alert.alert('Error', 'Category name is required');
       return;
     }
-
     setSaving(true);
     try {
       await api.post('/categories', form);
-      Alert.alert('Success', 'Category created successfully! 📁');
-      setModalVisible(false);
+      Alert.alert('Success', 'Category created! 📁');
+      setCreateModalVisible(false);
       setForm({ name: '', description: '' });
       fetchCategories();
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.message || 'Failed to create category');
+      Alert.alert('Error', error.response?.data?.message || 'Failed');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const fetchCategoryProducts = async (cat: any) => {
+    setSelectedCategory(cat);
+    setLoadingProducts(true);
+    try {
+      const response = await api.get('/products', { params: { category: cat.id } });
+      setCategoryProducts(response.data);
+    } catch (error) {
+      console.error('Failed to fetch products', error);
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  const handleMoveProduct = async (targetCatId: string) => {
+    try {
+      await api.patch(`/products/${productToMove.id}/category`, { categoryId: targetCatId });
+      Alert.alert('Success', 'Product moved! 📦');
+      setMoveModalVisible(false);
+      setProductToMove(null);
+      fetchCategoryProducts(selectedCategory);
+      fetchCategories();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to move product');
     }
   };
 
@@ -82,7 +118,7 @@ export default function CategoriesScreen() {
         </View>
         <TouchableOpacity 
           style={styles.addButton}
-          onPress={() => setModalVisible(true)}
+          onPress={() => setCreateModalVisible(true)}
         >
           <Plus size={24} color={Colors.dark.amber} />
         </TouchableOpacity>
@@ -98,10 +134,16 @@ export default function CategoriesScreen() {
           keyExtractor={(item) => item.id}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.categoryCard}>
-              <View style={styles.iconContainer}>
+            <TouchableOpacity 
+              style={styles.categoryCard}
+              onPress={() => fetchCategoryProducts(item)}
+            >
+              <LinearGradient 
+                colors={['rgba(245,158,11,0.15)', 'rgba(245,158,11,0.05)']} 
+                style={styles.iconContainer}
+              >
                 <Layers size={24} color={Colors.dark.amber} />
-              </View>
+              </LinearGradient>
               <View style={{ flex: 1 }}>
                 <Text style={styles.categoryName}>{item.name}</Text>
                 <View style={styles.statsRow}>
@@ -122,17 +164,18 @@ export default function CategoriesScreen() {
         />
       )}
 
+      {/* Create Category Modal */}
       <Modal
-        visible={modalVisible}
+        visible={createModalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => setCreateModalVisible(false)}
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>New Category</Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
                 <X size={24} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -154,7 +197,7 @@ export default function CategoriesScreen() {
                 style={[styles.modalInput, { height: 100, textAlignVertical: 'top', paddingTop: 12 }]}
                 value={form.description}
                 onChangeText={(val) => setForm({ ...form, description: val })}
-                placeholder="Brief description of this category..."
+                placeholder="Brief description..."
                 placeholderTextColor="rgba(255,255,255,0.2)"
                 multiline
               />
@@ -165,10 +208,104 @@ export default function CategoriesScreen() {
               onPress={handleCreate}
               disabled={saving}
             >
-              {saving ? <ActivityIndicator color="#0a0a0f" /> : <Text style={styles.saveText}>Create Category</Text>}
+              <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.saveGradient}>
+                {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Create Category</Text>}
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* View Products Modal (Replica of 'View All') */}
+      <Modal
+        visible={!!selectedCategory}
+        animationType="slide"
+        onRequestClose={() => setSelectedCategory(null)}
+      >
+        <View style={styles.productsModalContainer}>
+          <View style={styles.modalHeaderExtended}>
+            <TouchableOpacity onPress={() => setSelectedCategory(null)}>
+              <ChevronLeft size={28} color="#fff" />
+            </TouchableOpacity>
+            <View style={{ flex: 1, marginLeft: 15 }}>
+              <Text style={styles.modalTitle}>{selectedCategory?.name}</Text>
+              <Text style={styles.modalSubTitle}>{categoryProducts.length} Products</Text>
+            </View>
+          </View>
+
+          {loadingProducts ? (
+            <View style={styles.centered}>
+              <ActivityIndicator size="large" color={Colors.dark.amber} />
+            </View>
+          ) : (
+            <FlatList
+              data={categoryProducts}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.modalListContent}
+              renderItem={({ item }) => (
+                <View style={styles.productItem}>
+                  <View style={styles.productIcon}>
+                    <Text style={styles.productLetter}>{item.name.charAt(0).toUpperCase()}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.productName}>{item.name}</Text>
+                    <Text style={styles.productSub}>₨{item.salePrice} • {item.stock} {item.unit}</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.moveBtn}
+                    onPress={() => {
+                      setProductToMove(item);
+                      setMoveModalVisible(true);
+                    }}
+                  >
+                    <ArrowRightLeft size={18} color={Colors.dark.amber} />
+                    <Text style={styles.moveText}>Move</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              ListEmptyComponent={
+                <View style={styles.emptyContainer}>
+                  <Package size={60} color="rgba(255,255,255,0.05)" />
+                  <Text style={styles.emptyText}>No products in this category</Text>
+                </View>
+              }
+            />
+          )}
+        </View>
+
+        {/* Move Selection Modal */}
+        <Modal
+          visible={moveModalVisible}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setMoveModalVisible(false)}
+        >
+          <View style={styles.moveModalOverlay}>
+            <View style={styles.moveModalContent}>
+              <View style={styles.moveHeader}>
+                <Text style={styles.moveTitle}>Move to Category</Text>
+                <TouchableOpacity onPress={() => setMoveModalVisible(false)}>
+                  <X size={24} color="rgba(255,255,255,0.4)" />
+                </TouchableOpacity>
+              </View>
+              <Text style={styles.moveTargetName}>Moving: {productToMove?.name}</Text>
+              
+              <ScrollView style={styles.moveList}>
+                {categories.filter(c => c.id !== selectedCategory?.id).map(cat => (
+                  <TouchableOpacity 
+                    key={cat.id} 
+                    style={styles.moveTargetItem}
+                    onPress={() => handleMoveProduct(cat.id)}
+                  >
+                    <Layers size={18} color="rgba(255,255,255,0.4)" />
+                    <Text style={styles.moveTargetText}>{cat.name}</Text>
+                    <ChevronRight size={18} color="rgba(255,255,255,0.1)" />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
       </Modal>
     </View>
   );
@@ -327,16 +464,148 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   saveButton: {
-    height: 54,
-    backgroundColor: Colors.dark.amber,
     borderRadius: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
+    overflow: 'hidden',
     marginTop: 10,
   },
+  saveGradient: {
+    height: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   saveText: {
-    color: '#0a0a0f',
+    color: '#fff',
     fontSize: 16,
     fontWeight: '800',
+  },
+  productsModalContainer: {
+    flex: 1,
+    backgroundColor: '#0c0c14',
+  },
+  modalHeaderExtended: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    backgroundColor: '#151718',
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+    paddingBottom: 25,
+  },
+  modalSubTitle: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.4)',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  modalListContent: {
+    padding: 20,
+  },
+  productItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 20,
+    padding: 15,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  productIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 15,
+  },
+  productLetter: {
+    color: Colors.dark.amber,
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  productName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  productSub: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.3)',
+    fontWeight: '600',
+  },
+  moveBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(245,158,11,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+  },
+  moveText: {
+    fontSize: 12,
+    color: Colors.dark.amber,
+    fontWeight: '800',
+  },
+  moveModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  moveModalContent: {
+    width: '100%',
+    maxHeight: '70%',
+    backgroundColor: '#1c1c24',
+    borderRadius: 30,
+    padding: 25,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  moveHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  moveTitle: {
+    fontSize: 20,
+    fontWeight: '900',
+    color: '#fff',
+  },
+  moveTargetName: {
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.4)',
+    fontWeight: '600',
+    marginBottom: 20,
+  },
+  moveList: {
+    marginTop: 10,
+  },
+  moveTargetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    gap: 12,
+  },
+  moveTargetText: {
+    flex: 1,
+    fontSize: 15,
+    color: '#fff',
+    fontWeight: '700',
+  },
+  centered: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

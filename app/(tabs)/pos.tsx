@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert, Modal, Platform } from 'react-native';
 import { api } from '../../lib/api';
 import { Colors } from '../../constants/theme';
-import { Search, Plus, Minus, Trash2, ShoppingCart, Scan, X, User, Banknote, CreditCard } from 'lucide-react-native';
+import { Search, Plus, Minus, Trash2, ShoppingCart, Scan, X, User, Banknote, CreditCard, ChevronRight } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { LinearGradient } from 'expo-linear-gradient';
 
 export default function POSScreen() {
   const [products, setProducts] = useState<any[]>([]);
@@ -275,20 +276,27 @@ export default function POSScreen() {
             </Text>
           </View>
           <TouchableOpacity 
-            style={[styles.checkoutButton, isUdhar && { backgroundColor: Colors.dark.rose }]}
+            style={styles.checkoutButton}
             onPress={handleCheckout}
             disabled={loading}
           >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <>
-                <ShoppingCart size={20} color={isUdhar ? '#fff' : '#0a0a0f'} style={{ marginRight: 10 }} />
-                <Text style={[styles.checkoutText, isUdhar && { color: '#fff' }]}>
-                  {isUdhar ? 'Post Udhar Sale' : 'Complete Cash Sale'}
-                </Text>
-              </>
-            )}
+            <LinearGradient 
+              colors={isUdhar ? ['#f43f5e', '#e11d48'] : ['#f59e0b', '#d97706']} 
+              style={styles.checkoutGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <ShoppingCart size={20} color="#fff" style={{ marginRight: 10 }} />
+                  <Text style={styles.checkoutText}>
+                    {isUdhar ? 'Post Udhar Sale' : 'Complete Cash Sale'}
+                  </Text>
+                </>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       )}
@@ -513,17 +521,19 @@ const styles = StyleSheet.create({
     color: Colors.dark.amber,
   },
   checkoutButton: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  checkoutGradient: {
+    height: 54,
     flexDirection: 'row',
-    backgroundColor: Colors.dark.amber,
-    height: 52,
-    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkoutText: {
-    color: '#0a0a0f',
+    color: '#fff',
     fontSize: 16,
-    fontWeight: '700',
+    fontWeight: '800',
   },
   scannerContainer: {
     flex: 1,
