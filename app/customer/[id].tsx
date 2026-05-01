@@ -6,6 +6,19 @@ import { Colors } from '../../constants/theme';
 import { ChevronLeft, Phone, MapPin, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle2, DollarSign, Plus, X, MessageSquare, Search, Package } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
+interface UdharItem {
+  productId: string;
+  quantity: number;
+  priceAtTime: number;
+  unit: string;
+  name: string;
+}
+
+interface UdharForm {
+  items: UdharItem[];
+  description: string;
+}
+
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
@@ -22,13 +35,13 @@ export default function CustomerDetailScreen() {
 
   // Udhar Form State
   const [products, setProducts] = useState<any[]>([]);
-  const [udharForm, setUdharForm] = useState({
+  const [udharForm, setUdharForm] = useState<UdharForm>({
     items: [{ productId: '', quantity: 1, priceAtTime: 0, unit: 'pcs', name: '' }],
     description: ''
   });
 
   // Product Picker State
-  const [productModalVisible, setProductModalVisible] = useState(false);
+  const [udharModalView, setUdharModalView] = useState<'form' | 'picker'>('form');
   const [productSearch, setProductSearch] = useState('');
   const [currentPickingIndex, setCurrentPickingIndex] = useState<number | null>(null);
 
@@ -91,6 +104,7 @@ export default function CustomerDetailScreen() {
       });
       Alert.alert('Success', 'Udhar entry added! 📦');
       setUdharModalVisible(false);
+      setUdharModalView('form');
       setUdharForm({ items: [{ productId: '', quantity: 1, priceAtTime: 0, unit: 'pcs', name: '' }], description: '' });
       fetchCustomerData();
     } catch (error: any) {
@@ -322,166 +336,168 @@ export default function CustomerDetailScreen() {
         visible={udharModalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setUdharModalVisible(false)}
+        onRequestClose={() => {
+          if (udharModalView === 'picker') {
+            setUdharModalView('form');
+          } else {
+            setUdharModalVisible(false);
+          }
+        }}
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: '85%' }]}>
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>Add Udhar Entry</Text>
-                <Text style={styles.modalSubTitle}>New credit purchase</Text>
-              </View>
-              <TouchableOpacity onPress={() => setUdharModalVisible(false)}>
-                <X size={24} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              {udharForm.items.map((item, idx) => (
-                <View key={idx} style={styles.udharItemForm}>
-                  <View style={styles.formRow}>
-                    <View style={{ flex: 2 }}>
-                      <Text style={styles.formLabel}>Product</Text>
-                      <TouchableOpacity 
-                        style={styles.pickerBtn}
-                        onPress={() => {
-                          setCurrentPickingIndex(idx);
-                          setProductModalVisible(true);
-                        }}
-                      >
-                        <Text style={[styles.pickerText, !item.name && { color: 'rgba(255,255,255,0.2)' }]}>
-                          {item.name || 'Select Product'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={styles.formLabel}>Qty</Text>
-                      <TextInput
-                        style={styles.pickerBtn}
-                        value={item.quantity.toString()}
-                        onChangeText={(val) => updateUdharItem(idx, 'quantity', Number(val))}
-                        keyboardType="numeric"
-                        placeholder="1"
-                      />
-                    </View>
+            {udharModalView === 'form' ? (
+              <>
+                <View style={styles.modalHeader}>
+                  <View>
+                    <Text style={styles.modalTitle}>Add Udhar Entry</Text>
+                    <Text style={styles.modalSubTitle}>New credit purchase</Text>
                   </View>
-                  {udharForm.items.length > 1 && (
-                    <TouchableOpacity 
+                  <TouchableOpacity onPress={() => setUdharModalVisible(false)}>
+                    <X size={24} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  {udharForm.items.map((item, idx) => (
+                    <View key={idx} style={styles.udharItemForm}>
+                      <View style={styles.formRow}>
+                        <View style={{ flex: 2 }}>
+                          <Text style={styles.formLabel}>Product</Text>
+                          <TouchableOpacity 
+                            style={styles.pickerBtn}
+                            onPress={() => {
+                              setCurrentPickingIndex(idx);
+                              setUdharModalView('picker');
+                            }}
+                          >
+                            <Text style={[styles.pickerText, !item.name && { color: 'rgba(255,255,255,0.2)' }]}>
+                              {item.name || 'Select Product'}
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                        <View style={{ flex: 1, marginLeft: 10 }}>
+                          <Text style={styles.formLabel}>Qty</Text>
+                          <TextInput
+                            style={styles.pickerBtn}
+                            value={item.quantity.toString()}
+                            onChangeText={(val) => updateUdharItem(idx, 'quantity', Number(val))}
+                            keyboardType="numeric"
+                            placeholder="1"
+                          />
+                        </View>
+                      </View>
+                      {udharForm.items.length > 1 && (
+                        <TouchableOpacity 
+                          onPress={() => {
+                            const newItems = udharForm.items.filter((_, i) => i !== idx);
+                            setUdharForm({ ...udharForm, items: newItems });
+                          }}
+                          style={styles.removeItem}
+                        >
+                          <Text style={styles.removeItemText}>Remove Item</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                  ))}
+
+                  <TouchableOpacity 
+                    style={styles.addItemBtn}
+                    onPress={() => setUdharForm({ ...udharForm, items: [...udharForm.items, { productId: '', quantity: 1, priceAtTime: 0, unit: 'pcs', name: '' }] })}
+                  >
+                    <Plus size={16} color={Colors.dark.amber} />
+                    <Text style={styles.addItemText}>Add Another Item</Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>Note (Optional)</Text>
+                    <TextInput
+                      style={styles.modalInput}
+                      value={udharForm.description}
+                      onChangeText={(val) => setUdharForm({ ...udharForm, description: val })}
+                      placeholder="e.g. Monthly groceries"
+                      placeholderTextColor="rgba(255,255,255,0.2)"
+                    />
+                  </View>
+                </ScrollView>
+
+                <View style={styles.udharFooter}>
+                  <View>
+                    <Text style={styles.footerLabel}>Grand Total</Text>
+                    <Text style={styles.footerValue}>₨{udharTotal.toLocaleString()}</Text>
+                  </View>
+                  <TouchableOpacity 
+                    style={styles.confirmUdharBtn}
+                    onPress={handleAddUdhar}
+                    disabled={submitting}
+                  >
+                    <LinearGradient colors={['#f43f5e', '#e11d48']} style={styles.confirmGradient}>
+                      {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Confirm Entry</Text>}
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Select Product</Text>
+                  <TouchableOpacity onPress={() => setUdharModalView('form')}>
+                    <X size={24} color="rgba(255,255,255,0.5)" />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.pickerSearchBar}>
+                  <Search size={16} color="rgba(255,255,255,0.3)" style={{ marginRight: 8 }} />
+                  <TextInput
+                    style={styles.pickerSearchInput}
+                    placeholder="Search products..."
+                    placeholderTextColor="rgba(255,255,255,0.3)"
+                    value={productSearch}
+                    onChangeText={setProductSearch}
+                    autoFocus
+                    blurOnSubmit={false}
+                  />
+                </View>
+
+                <FlatList
+                  data={products.filter(p => 
+                    p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+                    (p.sku && p.sku.toLowerCase().includes(productSearch.toLowerCase()))
+                  )}
+                  keyExtractor={(item) => item.id}
+                  keyboardShouldPersistTaps="handled"
+                  contentContainerStyle={{ paddingBottom: 30 }}
+                  renderItem={({ item }) => (
+                    <TouchableOpacity
+                      style={styles.productPickerItem}
                       onPress={() => {
-                        const newItems = udharForm.items.filter((_, i) => i !== idx);
-                        setUdharForm({ ...udharForm, items: newItems });
+                        if (currentPickingIndex !== null) {
+                          updateUdharItem(currentPickingIndex, 'productId', item.id);
+                        }
+                        setUdharModalView('form');
+                        setProductSearch('');
                       }}
-                      style={styles.removeItem}
                     >
-                      <Text style={styles.removeItemText}>Remove Item</Text>
+                      <View style={styles.productPickerIcon}>
+                        <Package size={20} color={Colors.dark.amber} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.productPickerName}>{item.name}</Text>
+                        <Text style={styles.productPickerPrice}>₨{item.salePrice} / {item.unit}</Text>
+                      </View>
+                      <Text style={[styles.productPickerStock, item.stock <= (item.minStockLevel || 5) && { color: Colors.dark.rose }]}>
+                        {item.stock.toFixed(0)} {item.unit}
+                      </Text>
                     </TouchableOpacity>
                   )}
-                </View>
-              ))}
-
-              <TouchableOpacity 
-                style={styles.addItemBtn}
-                onPress={() => setUdharForm({ ...udharForm, items: [...udharForm.items, { productId: '', quantity: 1, priceAtTime: 0, unit: 'pcs', name: '' }] })}
-              >
-                <Plus size={16} color={Colors.dark.amber} />
-                <Text style={styles.addItemText}>Add Another Item</Text>
-              </TouchableOpacity>
-
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Note (Optional)</Text>
-                <TextInput
-                  style={styles.modalInput}
-                  value={udharForm.description}
-                  onChangeText={(val) => setUdharForm({ ...udharForm, description: val })}
-                  placeholder="e.g. Monthly groceries"
-                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  ListEmptyComponent={
+                    <View style={{ alignItems: 'center', paddingTop: 40 }}>
+                      <Text style={{ color: 'rgba(255,255,255,0.2)', fontWeight: '700' }}>No products found</Text>
+                    </View>
+                  }
                 />
-              </View>
-            </ScrollView>
-
-            <View style={styles.udharFooter}>
-              <View>
-                <Text style={styles.footerLabel}>Grand Total</Text>
-                <Text style={styles.footerValue}>₨{udharTotal.toLocaleString()}</Text>
-              </View>
-              <TouchableOpacity 
-                style={styles.confirmUdharBtn}
-                onPress={handleAddUdhar}
-                disabled={submitting}
-              >
-                <LinearGradient colors={['#f43f5e', '#e11d48']} style={styles.confirmGradient}>
-                  {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Confirm Entry</Text>}
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Product Picker Modal */}
-      <Modal
-        visible={productModalVisible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setProductModalVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Select Product</Text>
-              <TouchableOpacity onPress={() => setProductModalVisible(false)}>
-                <X size={24} color="rgba(255,255,255,0.5)" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.pickerSearchBar}>
-              <Search size={16} color="rgba(255,255,255,0.3)" style={{ marginRight: 8 }} />
-              <TextInput
-                style={styles.pickerSearchInput}
-                placeholder="Search products..."
-                placeholderTextColor="rgba(255,255,255,0.3)"
-                value={productSearch}
-                onChangeText={setProductSearch}
-                autoFocus
-              />
-            </View>
-
-            <FlatList
-              data={products.filter(p => 
-                p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-                (p.sku && p.sku.toLowerCase().includes(productSearch.toLowerCase()))
-              )}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={{ paddingBottom: 30 }}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.productPickerItem}
-                  onPress={() => {
-                    if (currentPickingIndex !== null) {
-                      updateUdharItem(currentPickingIndex, 'productId', item.id);
-                    }
-                    setProductModalVisible(false);
-                    setProductSearch('');
-                  }}
-                >
-                  <View style={styles.productPickerIcon}>
-                    <Package size={20} color={Colors.dark.amber} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.productPickerName}>{item.name}</Text>
-                    <Text style={styles.productPickerPrice}>₨{item.salePrice} / {item.unit}</Text>
-                  </View>
-                  <Text style={[styles.productPickerStock, item.stock <= (item.minStockLevel || 5) && { color: Colors.dark.rose }]}>
-                    {item.stock.toFixed(0)} {item.unit}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={
-                <View style={{ alignItems: 'center', paddingTop: 40 }}>
-                  <Text style={{ color: 'rgba(255,255,255,0.2)', fontWeight: '700' }}>No products found</Text>
-                </View>
-              }
-            />
+              </>
+            )}
           </View>
         </View>
       </Modal>
