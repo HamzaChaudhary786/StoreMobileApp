@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const API_URL = 'https://store-manage-backend.vercel.app';
+const API_URL = 'https://store-manage-backend.vercel.app/api';
 
 export const api = axios.create({
   baseURL: API_URL,

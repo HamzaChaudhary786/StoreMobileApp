@@ -37,15 +37,24 @@ export default function InventoryScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.searchContainer}>
-          <Search size={20} color="rgba(255,255,255,0.3)" style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search inventory..."
-            placeholderTextColor="rgba(255,255,255,0.3)"
-            value={search}
-            onChangeText={setSearch}
-          />
+        <View style={styles.topRow}>
+          <View style={styles.searchContainer}>
+            <Search size={20} color="rgba(255,255,255,0.3)" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search inventory..."
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              value={search}
+              onChangeText={setSearch}
+            />
+          </View>
+          <TouchableOpacity 
+            style={styles.categoryBtn}
+            onPress={() => router.push('/categories')}
+          >
+            <Plus size={20} color={Colors.dark.amber} />
+            <Text style={styles.categoryBtnText}>Categories</Text>
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -109,6 +118,28 @@ const styles = StyleSheet.create({
   },
   header: {
     padding: 20,
+    paddingTop: 40,
+  },
+  topRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  categoryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245,158,11,0.1)',
+    paddingHorizontal: 12,
+    height: 50,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.2)',
+    gap: 6,
+  },
+  categoryBtnText: {
+    color: Colors.dark.amber,
+    fontSize: 12,
+    fontWeight: '700',
   },
   searchContainer: {
     flexDirection: 'row',

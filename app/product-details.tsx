@@ -23,6 +23,8 @@ export default function ProductDetailsScreen() {
     stock: '',
     minStockLevel: '',
     unit: '',
+    piecesPerUnit: '',
+    description: '',
     categoryId: '',
   });
 
@@ -45,6 +47,8 @@ export default function ProductDetailsScreen() {
         stock: product.stock.toString(),
         minStockLevel: product.minStockLevel.toString(),
         unit: product.unit,
+        piecesPerUnit: product.piecesPerUnit?.toString() || '1',
+        description: product.description || '',
         categoryId: product.categoryId,
       });
       setCategories(catRes.data);
@@ -76,6 +80,7 @@ export default function ProductDetailsScreen() {
         salePrice: Number(form.salePrice),
         stock: Number(form.stock),
         minStockLevel: Number(form.minStockLevel),
+        piecesPerUnit: Number(form.piecesPerUnit),
       });
       Alert.alert('Success', 'Product updated! ✨');
       router.back();
@@ -201,6 +206,26 @@ export default function ProductDetailsScreen() {
               onChangeText={(val: string) => setForm({ ...form, minStockLevel: val })}
               icon={AlertTriangle}
               keyboardType="numeric"
+            />
+          </View>
+        </View>
+
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <InputField
+              label="Pieces Per Unit"
+              value={form.piecesPerUnit}
+              onChangeText={(val: string) => setForm({ ...form, piecesPerUnit: val })}
+              icon={Layers}
+              keyboardType="numeric"
+            />
+          </View>
+          <View style={{ flex: 1, marginLeft: 15 }}>
+            <InputField
+              label="Description"
+              value={form.description}
+              onChangeText={(val: string) => setForm({ ...form, description: val })}
+              icon={Package}
             />
           </View>
         </View>

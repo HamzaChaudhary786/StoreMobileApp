@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity, Dimensions } from 'react-native';
 import { api } from '../../lib/api';
 import { Colors } from '../../constants/theme';
-import { TrendingUp, ShoppingBag, Users, DollarSign, ArrowUpRight, ArrowDownRight, Calendar } from 'lucide-react-native';
+import { TrendingUp, ShoppingBag, Users, DollarSign, ArrowUpRight, ArrowDownRight, Calendar, FileText } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 
 const { width } = Dimensions.get('window');
 
 export default function ReportsScreen() {
+  const router = useRouter();
   const [stats, setStats] = useState<any>(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -55,9 +57,12 @@ export default function ReportsScreen() {
     >
       <View style={styles.header}>
         <Text style={styles.title}>Analytics</Text>
-        <TouchableOpacity style={styles.datePicker}>
-          <Calendar size={18} color={Colors.dark.amber} />
-          <Text style={styles.dateText}>This Month</Text>
+        <TouchableOpacity 
+          style={styles.detailedReportsBtn}
+          onPress={() => router.push('/reports')}
+        >
+          <FileText size={18} color={Colors.dark.amber} />
+          <Text style={styles.detailedReportsText}>Detailed Reports</Text>
         </TouchableOpacity>
       </View>
 
@@ -142,6 +147,22 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 10,
     gap: 8,
+  },
+  detailedReportsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245,158,11,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(245,158,11,0.2)',
+  },
+  detailedReportsText: {
+    color: Colors.dark.amber,
+    fontSize: 12,
+    fontWeight: '800',
   },
   dateText: {
     color: '#fff',

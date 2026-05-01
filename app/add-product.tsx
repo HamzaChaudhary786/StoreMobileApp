@@ -21,7 +21,10 @@ export default function AddProductScreen() {
     stock: '',
     minStockLevel: '5',
     unit: 'pcs',
+    piecesPerUnit: '1',
+    description: '',
     categoryId: '',
+    images: [] as string[],
   });
 
   useEffect(() => {
@@ -62,6 +65,7 @@ export default function AddProductScreen() {
         salePrice: Number(form.salePrice),
         stock: Number(form.stock),
         minStockLevel: Number(form.minStockLevel),
+        piecesPerUnit: Number(form.piecesPerUnit),
       });
       Alert.alert('Success', 'Product added successfully! 🎉');
       router.back();
@@ -161,6 +165,28 @@ export default function AddProductScreen() {
               onChangeText={(val: string) => setForm({ ...form, unit: val })}
               placeholder="pcs"
               icon={Weight}
+            />
+          </View>
+        </View>
+
+        <View style={styles.row}>
+          <View style={{ flex: 1 }}>
+            <InputField
+              label="Pieces Per Unit"
+              value={form.piecesPerUnit}
+              onChangeText={(val: string) => setForm({ ...form, piecesPerUnit: val })}
+              placeholder="1"
+              icon={Layers}
+              keyboardType="numeric"
+            />
+          </View>
+          <View style={{ flex: 1, marginLeft: 15 }}>
+             <InputField
+              label="Description"
+              value={form.description}
+              onChangeText={(val: string) => setForm({ ...form, description: val })}
+              placeholder="Product details..."
+              icon={Package}
             />
           </View>
         </View>
