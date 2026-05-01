@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../lib/api';
 import { Colors } from '../../constants/theme';
-import { ChevronLeft, Phone, MapPin, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle2, DollarSign, Plus, X, MessageSquare } from 'lucide-react-native';
+import { ChevronLeft, Phone, MapPin, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle2, DollarSign, Plus, X, MessageSquare, Search, Package } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function CustomerDetailScreen() {
@@ -26,6 +26,11 @@ export default function CustomerDetailScreen() {
     items: [{ productId: '', quantity: 1, priceAtTime: 0, unit: 'pcs', name: '' }],
     description: ''
   });
+
+  // Product Picker State
+  const [productModalVisible, setProductModalVisible] = useState(false);
+  const [productSearch, setProductSearch] = useState('');
+  const [currentPickingIndex, setCurrentPickingIndex] = useState<number | null>(null);
 
   const fetchCustomerData = async () => {
     try {
@@ -340,14 +345,8 @@ export default function CustomerDetailScreen() {
                       <TouchableOpacity 
                         style={styles.pickerBtn}
                         onPress={() => {
-                          Alert.alert(
-                            "Select Product",
-                            "Choose a product to add",
-                            products.slice(0, 10).map(p => ({
-                              text: `${p.name} - ₨${p.salePrice}`,
-                              onPress: () => updateUdharItem(idx, 'productId', p.id)
-                            }))
-                          );
+                          setCurrentPickingIndex(idx);
+                          setProductModalVisible(true);
                         }}
                       >
                         <Text style={[styles.pickerText, !item.name && { color: 'rgba(255,255,255,0.2)' }]}>
@@ -415,6 +414,74 @@ export default function CustomerDetailScreen() {
                 </LinearGradient>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Product Picker Modal */}
+      <Modal
+        visible={productModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setProductModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '80%' }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Product</Text>
+              <TouchableOpacity onPress={() => setProductModalVisible(false)}>
+                <X size={24} color="rgba(255,255,255,0.5)" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.pickerSearchBar}>
+              <Search size={16} color="rgba(255,255,255,0.3)" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.pickerSearchInput}
+                placeholder="Search products..."
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                value={productSearch}
+                onChangeText={setProductSearch}
+                autoFocus
+              />
+            </View>
+
+            <FlatList
+              data={products.filter(p => 
+                p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+                (p.sku && p.sku.toLowerCase().includes(productSearch.toLowerCase()))
+              )}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={{ paddingBottom: 30 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.productPickerItem}
+                  onPress={() => {
+                    if (currentPickingIndex !== null) {
+                      updateUdharItem(currentPickingIndex, 'productId', item.id);
+                    }
+                    setProductModalVisible(false);
+                    setProductSearch('');
+                  }}
+                >
+                  <View style={styles.productPickerIcon}>
+                    <Package size={20} color={Colors.dark.amber} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.productPickerName}>{item.name}</Text>
+                    <Text style={styles.productPickerPrice}>₨{item.salePrice} / {item.unit}</Text>
+                  </View>
+                  <Text style={[styles.productPickerStock, item.stock <= (item.minStockLevel || 5) && { color: Colors.dark.rose }]}>
+                    {item.stock.toFixed(0)} {item.unit}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              ListEmptyComponent={
+                <View style={{ alignItems: 'center', paddingTop: 40 }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.2)', fontWeight: '700' }}>No products found</Text>
+                </View>
+              }
+            />
           </View>
         </View>
       </Modal>
@@ -783,5 +850,53 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  pickerSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 14,
+    paddingHorizontal: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  pickerSearchInput: {
+    flex: 1,
+    height: 46,
+    color: '#fff',
+    fontSize: 14,
+  },
+  productPickerItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
+  },
+  productPickerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(245,158,11,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  productPickerName: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 2,
+  },
+  productPickerPrice: {
+    fontSize: 12,
+    color: Colors.dark.amber,
+    fontWeight: '600',
+  },
+  productPickerStock: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.3)',
+    fontWeight: '700',
   },
 });
