@@ -8,11 +8,6 @@ const API_URL = 'https://store-manage-backend.vercel.app/api';
 
 export const api = axios.create({
   baseURL: API_URL,
-  withCredentials: true,
-  headers: {
-    'Bypass-Tunnel-Reminder': 'true',
-    'ngrok-skip-browser-warning': 'true'
-  }
 });
 
 // Interceptor to add auth token if needed
