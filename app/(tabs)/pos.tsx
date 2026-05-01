@@ -14,7 +14,12 @@ export default function POSScreen() {
   const [loading, setLoading] = useState(false);
   const [isUdhar, setIsUdhar] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [selectedCustomerName, setSelectedCustomerName] = useState<string>('');
   const [discount, setDiscount] = useState(0);
+
+  // Customer picker modal
+  const [customerModalVisible, setCustomerModalVisible] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState('');
 
   // Camera permissions
   const [permission, requestPermission] = useCameraPermissions();
@@ -115,6 +120,7 @@ export default function POSScreen() {
       setCart([]);
       setIsUdhar(false);
       setSelectedCustomerId('');
+      setSelectedCustomerName('');
       setDiscount(0);
       fetchData();
     } catch (error: any) {
@@ -170,28 +176,92 @@ export default function POSScreen() {
       )}
 
       {isUdhar && cart.length > 0 && (
-        <View style={styles.customerSelector}>
+        <TouchableOpacity
+          style={styles.customerSelector}
+          onPress={() => setCustomerModalVisible(true)}
+        >
           <User size={18} color={Colors.dark.rose} style={{ marginRight: 10 }} />
-          <View style={styles.pickerContainer}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.selectorLabel}>Udhar Customer</Text>
+            <Text style={[styles.selectorValue, !selectedCustomerId && { color: 'rgba(255,255,255,0.3)' }]}>
+              {selectedCustomerName || 'Tap to select customer...'}
+            </Text>
+          </View>
+          <ChevronRight size={18} color="rgba(255,255,255,0.3)" />
+        </TouchableOpacity>
+      )}
+
+      {/* Customer Picker Modal */}
+      <Modal
+        visible={customerModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setCustomerModalVisible(false)}
+      >
+        <View style={styles.custModalOverlay}>
+          <View style={styles.custModalContent}>
+            <View style={styles.custModalHeader}>
+              <Text style={styles.custModalTitle}>Select Customer</Text>
+              <TouchableOpacity onPress={() => setCustomerModalVisible(false)}>
+                <X size={24} color="rgba(255,255,255,0.5)" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.custSearchBar}>
+              <Search size={16} color="rgba(255,255,255,0.3)" style={{ marginRight: 8 }} />
+              <TextInput
+                style={styles.custSearchInput}
+                placeholder="Search customers..."
+                placeholderTextColor="rgba(255,255,255,0.3)"
+                value={customerSearch}
+                onChangeText={setCustomerSearch}
+                autoFocus
+              />
+            </View>
+
             <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={customers}
+              data={customers.filter(c =>
+                (c.name || '').toLowerCase().includes(customerSearch.toLowerCase()) ||
+                (c.phone || '').includes(customerSearch)
+              )}
               keyExtractor={(item) => item.id}
+              contentContainerStyle={{ paddingBottom: 30 }}
               renderItem={({ item }) => (
-                <TouchableOpacity 
-                  style={[styles.customerChip, selectedCustomerId === item.id && styles.selectedChip]}
-                  onPress={() => setSelectedCustomerId(item.id)}
+                <TouchableOpacity
+                  style={[
+                    styles.custItem,
+                    selectedCustomerId === item.id && styles.custItemSelected
+                  ]}
+                  onPress={() => {
+                    setSelectedCustomerId(item.id);
+                    setSelectedCustomerName(item.name);
+                    setCustomerModalVisible(false);
+                    setCustomerSearch('');
+                  }}
                 >
-                  <Text style={[styles.chipText, selectedCustomerId === item.id && styles.selectedChipText]}>
-                    {item.name}
-                  </Text>
+                  <View style={styles.custAvatar}>
+                    <Text style={styles.custAvatarText}>{(item.name || '?').charAt(0).toUpperCase()}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.custName}>{item.name}</Text>
+                    <Text style={styles.custPhone}>{item.phone}</Text>
+                  </View>
+                  <View style={styles.custBalance}>
+                    <Text style={[(item.currentBalance || 0) > 0 ? styles.custBalanceRed : styles.custBalanceGreen]}>
+                      ₨{(item.currentBalance || 0).toLocaleString()}
+                    </Text>
+                  </View>
                 </TouchableOpacity>
               )}
+              ListEmptyComponent={
+                <View style={{ alignItems: 'center', paddingTop: 40 }}>
+                  <Text style={{ color: 'rgba(255,255,255,0.2)', fontWeight: '700' }}>No customers found</Text>
+                </View>
+              }
             />
           </View>
         </View>
-      )}
+      </Modal>
 
       <FlatList
         data={filteredProducts}
@@ -381,35 +451,113 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: 20,
     marginBottom: 15,
-    padding: 12,
-    backgroundColor: 'rgba(244,63,94,0.05)',
-    borderRadius: 16,
+    padding: 15,
+    backgroundColor: 'rgba(244,63,94,0.08)',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(244,63,94,0.1)',
+    borderColor: 'rgba(244,63,94,0.2)',
   },
-  pickerContainer: {
-    flex: 1,
+  selectorLabel: {
+    fontSize: 10,
+    color: Colors.dark.rose,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    marginBottom: 3,
   },
-  customerChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    borderRadius: 10,
-    marginRight: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-  },
-  selectedChip: {
-    backgroundColor: Colors.dark.rose,
-    borderColor: 'rgba(255,255,255,0.2)',
-  },
-  chipText: {
-    color: 'rgba(255,255,255,0.5)',
-    fontSize: 12,
+  selectorValue: {
+    fontSize: 15,
+    color: '#fff',
     fontWeight: '700',
   },
-  selectedChipText: {
+  custModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'flex-end',
+  },
+  custModalContent: {
+    backgroundColor: '#151718',
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    paddingTop: 20,
+    maxHeight: '80%',
+  },
+  custModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 25,
+    marginBottom: 15,
+  },
+  custModalTitle: {
+    fontSize: 20,
+    fontWeight: '900',
     color: '#fff',
+  },
+  custSearchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 14,
+    marginHorizontal: 20,
+    paddingHorizontal: 15,
+    marginBottom: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+  },
+  custSearchInput: {
+    flex: 1,
+    height: 46,
+    color: '#fff',
+    fontSize: 14,
+  },
+  custItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.04)',
+  },
+  custItemSelected: {
+    backgroundColor: 'rgba(244,63,94,0.08)',
+  },
+  custAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(99,102,241,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 15,
+  },
+  custAvatarText: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#6366f1',
+  },
+  custName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 3,
+  },
+  custPhone: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    fontWeight: '500',
+  },
+  custBalance: {
+    alignItems: 'flex-end',
+  },
+  custBalanceRed: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: Colors.dark.rose,
+  },
+  custBalanceGreen: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#10b981',
   },
   listContent: {
     paddingHorizontal: 20,
