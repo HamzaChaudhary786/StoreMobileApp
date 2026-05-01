@@ -28,7 +28,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       if (storedToken) {
         setToken(storedToken);
-        api.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
       }
       
       if (storedUser) {
@@ -43,7 +42,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await api.post('/auth/login', { email, password });
+      const response = await api.post('/api/auth/login', { email, password });
       const { token, admin } = response.data;
 
       await SecureStore.setItemAsync('authToken', token);
@@ -51,7 +50,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setToken(token);
       setUser(admin);
-      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     } catch (error) {
       throw error;
     }
@@ -62,7 +60,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await SecureStore.deleteItemAsync('user');
     setToken(null);
     setUser(null);
-    delete api.defaults.headers.common['Authorization'];
   };
 
   return (
