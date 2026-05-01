@@ -33,7 +33,14 @@ export default function LoginScreen() {
       await login(email, password);
       router.replace('/(tabs)');
     } catch (error: any) {
-      const message = error.response?.data?.message || 'Login failed. Please check your credentials.';
+      let message = 'Login failed. Please check your credentials.';
+      
+      if (!error.response) {
+        message = 'Network error. Please check if the server is running and your phone is on the same Wi-Fi.';
+      } else if (error.response.data?.message) {
+        message = error.response.data.message;
+      }
+      
       Alert.alert('Login Error', message);
     } finally {
       setLoading(false);

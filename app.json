@@ -23,7 +23,8 @@
       "permissions": [
         "android.permission.CAMERA"
       ],
-      "package": "com.hamza_sattar007.mobile"
+      "package": "com.hamza_sattar007.mobile",
+      "usesCleartextTraffic": true
     },
     "web": {
       "output": "static",
