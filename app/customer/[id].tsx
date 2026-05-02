@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../lib/api';
 import { Colors } from '../../constants/theme';
-import { ChevronLeft, Phone, MapPin, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle2, DollarSign, Plus, X, MessageSquare, Search, Package, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Phone, MapPin, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle2, DollarSign, Plus, X, MessageSquare, Search, Package, Trash2, Edit2 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface UdharItem {
@@ -21,6 +21,7 @@ interface UdharForm {
 
 export default function CustomerDetailScreen() {
   const { id } = useLocalSearchParams();
+  const customerId = Array.isArray(id) ? id[0] : id;
   const router = useRouter();
   const [customer, setCustomer] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -32,8 +33,10 @@ export default function CustomerDetailScreen() {
   const [payAmount, setPayAmount] = useState('');
   const [payNote, setPayNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteConfirmName, setDeleteConfirmName] = useState('');
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editForm, setEditForm] = useState({ name: '', phone: '', address: '' });
 
   // Udhar Form State
   const [products, setProducts] = useState<any[]>([]);
@@ -50,12 +53,12 @@ export default function CustomerDetailScreen() {
   const fetchCustomerData = async () => {
     try {
       const [custRes, prodRes] = await Promise.all([
-        api.get(`/customers/${id}`),
+        api.get(`/customers/${customerId}`),
         api.get('/products')
       ]);
       setCustomer(custRes.data);
       setProducts(prodRes.data);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch data', error);
       Alert.alert('Error', 'Failed to load data');
     } finally {
@@ -64,8 +67,10 @@ export default function CustomerDetailScreen() {
   };
 
   useEffect(() => {
-    fetchCustomerData();
-  }, [id]);
+    if (customerId) {
+      fetchCustomerData();
+    }
+  }, [customerId]);
 
   const handlePayment = async () => {
     if (!payAmount || isNaN(Number(payAmount))) {
@@ -75,7 +80,7 @@ export default function CustomerDetailScreen() {
     setSubmitting(true);
     try {
       await api.post('/customers/pay', {
-        customerId: id,
+        customerId: customerId,
         amount: Number(payAmount),
         note: payNote
       });
@@ -100,7 +105,7 @@ export default function CustomerDetailScreen() {
     setSubmitting(true);
     try {
       await api.post('/customers/transaction', {
-        customerId: id,
+        customerId: customerId,
         items: validItems,
         description: udharForm.description
       });
@@ -142,12 +147,31 @@ export default function CustomerDetailScreen() {
 
     setSubmitting(true);
     try {
-      await api.delete(`/customers/${id}`);
+      await api.delete(`/customers/${customerId}`);
       setDeleteModalVisible(false);
       Alert.alert('Success', 'Customer deleted successfully');
       router.back();
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.message || 'Failed to delete customer');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateCustomer = async () => {
+    if (!editForm.name || !editForm.phone) {
+      Alert.alert('Error', 'Name and Phone are required');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await api.patch(`/customers/${customerId}`, editForm);
+      Alert.alert('Success', 'Customer updated successfully');
+      setEditModalVisible(false);
+      fetchCustomerData();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update customer');
     } finally {
       setSubmitting(false);
     }
@@ -245,8 +269,8 @@ export default function CustomerDetailScreen() {
               await api.post(`/customers/pay-transaction/${transaction.id}`);
               Alert.alert("Success", "Transaction marked as paid!");
               fetchCustomerData();
-            } catch (err) {
-              Alert.alert("Error", "Failed to process payment");
+            } catch (err: any) {
+              Alert.alert("Error", err.response?.data?.message || "Failed to process payment");
             }
           } 
         }
@@ -277,12 +301,23 @@ export default function CustomerDetailScreen() {
           <ChevronLeft size={28} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Customer Profile</Text>
-        <TouchableOpacity 
-          style={styles.deleteHeaderBtn}
-          onPress={() => setDeleteModalVisible(true)}
-        >
-          <Trash2 size={22} color={Colors.dark.rose} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            style={styles.headerBtn}
+            onPress={() => {
+              setEditForm({ name: customer?.name || '', phone: customer?.phone || '', address: customer?.address || '' });
+              setEditModalVisible(true);
+            }}
+          >
+            <Edit2 size={20} color="#fff" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.headerBtn, { marginLeft: 15 }]}
+            onPress={() => setDeleteModalVisible(true)}
+          >
+            <Trash2 size={20} color={Colors.dark.rose} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -633,7 +668,7 @@ export default function CustomerDetailScreen() {
               <Text style={styles.deleteGuardText}>
                 To confirm deletion, please type the customer name:
               </Text>
-              <Text style={styles.deleteTargetName}>{customer?.name}</Text>
+              <Text style={styles.deleteTargetName}>{customer?.name || '---'}</Text>
             </View>
 
             <View style={styles.inputGroup}>
@@ -656,6 +691,75 @@ export default function CustomerDetailScreen() {
                 {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Permanently Delete</Text>}
               </LinearGradient>
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Profile Modal */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Edit Profile</Text>
+                <Text style={styles.modalSubTitle}>Update customer details</Text>
+              </View>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+                <X size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Customer Name *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={editForm.name}
+                  onChangeText={(val) => setEditForm({ ...editForm, name: val })}
+                  placeholder="Full Name"
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Phone (WhatsApp) *</Text>
+                <TextInput
+                  style={styles.modalInput}
+                  value={editForm.phone}
+                  onChangeText={(val) => setEditForm({ ...editForm, phone: val })}
+                  placeholder="+92..."
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Address (Optional)</Text>
+                <TextInput
+                  style={[styles.modalInput, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]}
+                  value={editForm.address}
+                  onChangeText={(val) => setEditForm({ ...editForm, address: val })}
+                  placeholder="Street address, city..."
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  multiline
+                />
+              </View>
+
+              <TouchableOpacity 
+                style={styles.confirmBtn}
+                onPress={handleUpdateCustomer}
+                disabled={submitting}
+              >
+                <LinearGradient colors={['#3b82f6', '#2563eb']} style={styles.confirmGradient}>
+                  {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Update Profile</Text>}
+                </LinearGradient>
+              </TouchableOpacity>
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -1157,10 +1261,15 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.3)',
     fontWeight: '700',
   },
-  deleteHeaderBtn: {
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     position: 'absolute',
     right: 20,
-    top: Platform.OS === 'ios' ? 62 : 42,
+    top: Platform.OS === 'ios' ? 52 : 42,
+  },
+  headerBtn: {
+    padding: 5,
   },
   deleteGuardBox: {
     backgroundColor: 'rgba(244,63,94,0.1)',
