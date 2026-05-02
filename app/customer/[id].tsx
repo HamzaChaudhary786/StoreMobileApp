@@ -50,6 +50,14 @@ export default function CustomerDetailScreen() {
   const [productSearch, setProductSearch] = useState('');
   const [currentPickingIndex, setCurrentPickingIndex] = useState<number | null>(null);
 
+  const getUnitDisplay = (unit: string, name: string = '') => {
+    const u = unit?.toLowerCase() || '';
+    const n = name?.toLowerCase() || '';
+    if (['kg', 'g', 'gram'].some(k => u.includes(k)) || n.includes('rice')) return 'kg';
+    if (['ltr', 'litre', 'ml', 'bottle'].some(k => u.includes(k)) || n.includes('oil') || n.includes('milk')) return 'ltr';
+    return 'pcs';
+  };
+
   const fetchCustomerData = async () => {
     try {
       const [custRes, prodRes] = await Promise.all([
@@ -520,7 +528,7 @@ export default function CustomerDetailScreen() {
                           </TouchableOpacity>
                         </View>
                         <View style={{ flex: 1, marginLeft: 10 }}>
-                          <Text style={styles.formLabel}>Qty</Text>
+                          <Text style={styles.formLabel}>Qty ({getUnitDisplay(item.unit, item.name)})</Text>
                           <TextInput
                             style={styles.pickerBtn}
                             value={item.quantity.toString()}
@@ -626,10 +634,10 @@ export default function CustomerDetailScreen() {
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.productPickerName}>{item.name}</Text>
-                        <Text style={styles.productPickerPrice}>₨{item.salePrice} / {item.unit}</Text>
+                        <Text style={styles.productPickerPrice}>₨{item.salePrice} / {getUnitDisplay(item.unit, item.name)}</Text>
                       </View>
                       <Text style={[styles.productPickerStock, item.stock <= (item.minStockLevel || 5) && { color: Colors.dark.rose }]}>
-                        {item.stock.toFixed(0)} {item.unit}
+                        {item.stock.toFixed(0)} {getUnitDisplay(item.unit, item.name)}
                       </Text>
                     </TouchableOpacity>
                   )}
