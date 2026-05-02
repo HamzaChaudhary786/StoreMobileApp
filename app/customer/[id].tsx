@@ -140,17 +140,66 @@ export default function CustomerDetailScreen() {
   }
 
   const renderTransaction = ({ item }: { item: any }) => (
-    <View style={styles.historyItem} key={item.id}>
-      <View style={styles.historyIcon}>
-        <ArrowUpRight size={18} color={Colors.dark.rose} />
+    <View style={styles.historyCard} key={item.id}>
+      <View style={styles.historyTop}>
+        <View style={styles.historyTypeRow}>
+          <View style={[styles.statusBadge, { backgroundColor: item.isPaid ? 'rgba(16,185,129,0.1)' : 'rgba(244,63,94,0.1)' }]}>
+            <Text style={[styles.statusText, { color: item.isPaid ? '#10b981' : '#fb7185' }]}>
+              {item.isPaid ? 'PAID' : 'UNPAID'}
+            </Text>
+          </View>
+          <Text style={styles.historyDate}>
+            {item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-PK', { day: '2-digit', month: 'short' }) : '---'}
+          </Text>
+        </View>
+        <Text style={styles.historyAmount}>₨{(item.totalAmount || 0).toFixed(0)}</Text>
       </View>
-      <View style={{ flex: 1 }}>
+
+      {item.items && item.items.length > 0 ? (
+        <View style={styles.itemsList}>
+          {item.items.map((i: any, idx: number) => (
+            <View key={idx} style={styles.itemRow}>
+              <Text style={styles.itemName}>{i.product?.name || 'Unknown Product'}</Text>
+              <Text style={styles.itemDetails}>{i.quantity || 0} {i.product?.unit || 'pcs'} × ₨{i.priceAtTime || 0}</Text>
+            </View>
+          ))}
+        </View>
+      ) : (
         <Text style={styles.historyTitle}>{item.description || 'Udhar Purchase'}</Text>
-        <Text style={styles.historyDate}>{new Date(item.createdAt).toLocaleDateString()} • {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</Text>
-      </View>
-      <Text style={[styles.historyAmount, { color: Colors.dark.rose }]}>₨{(item.totalAmount || 0).toLocaleString()}</Text>
+      )}
+
+      {!item.isPaid && (
+        <TouchableOpacity 
+          style={styles.payTxBtn}
+          onPress={() => handlePaySpecificTransaction(item)}
+        >
+          <Text style={styles.payTxBtnText}>MARK AS PAID</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
+
+  const handlePaySpecificTransaction = (transaction: any) => {
+    Alert.alert(
+      "Confirm Payment",
+      `Mark this transaction of ₨${transaction.totalAmount} as paid? This will decrement the customer's balance.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Confirm", 
+          onPress: async () => {
+            try {
+              await api.post(`/customers/pay-transaction/${transaction.id}`);
+              Alert.alert("Success", "Transaction marked as paid!");
+              fetchCustomerData();
+            } catch (err) {
+              Alert.alert("Error", "Failed to process payment");
+            }
+          } 
+        }
+      ]
+    );
+  };
 
   const renderPayment = ({ item }: { item: any }) => (
     <View style={styles.historyItem} key={item.id}>
@@ -331,7 +380,7 @@ export default function CustomerDetailScreen() {
         </View>
       </Modal>
 
-      {/* Add Udhar Modal (Replica) */}
+      {/* Add Udhar Modal */}
       <Modal
         visible={udharModalVisible}
         animationType="slide"
@@ -735,6 +784,73 @@ const styles = StyleSheet.create({
   listSection: {
     paddingHorizontal: 20,
     paddingBottom: 40,
+  },
+  historyCard: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 20,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  historyTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  historyTypeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 1,
+  },
+  itemsList: {
+    marginTop: 4,
+    gap: 6,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.04)',
+  },
+  itemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  itemName: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: 'rgba(255,255,255,0.8)',
+    flex: 1,
+  },
+  itemDetails: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.4)',
+    fontWeight: '600',
+  },
+  payTxBtn: {
+    marginTop: 15,
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.3)',
+    borderRadius: 12,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  payTxBtnText: {
+    color: '#10b981',
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 1,
   },
   historyItem: {
     flexDirection: 'row',

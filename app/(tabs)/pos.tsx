@@ -103,7 +103,7 @@ export default function POSScreen() {
             quantity: item.quantity,
             priceAtTime: item.salePrice
           })),
-          description: 'Mobile POS Udhar Sale'
+          description: `Mobile POS Udhar Sale: ${cart.map(i => i.name).join(', ')}`
         });
       } else {
         await api.post('/orders', {

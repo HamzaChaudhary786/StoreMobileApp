@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, RefreshControl, Modal, ActivityIndicator, Alert, Platform, ScrollView } from 'react-native';
 import { api } from '../lib/api';
 import { Colors } from '../constants/theme';
-import { ChevronLeft, Layers, Plus, X, Search, Package, ChevronRight, ArrowRightLeft, Move } from 'lucide-react-native';
+import { ChevronLeft, Layers, Plus, X, Search, Package, ChevronRight, ArrowRightLeft, Move, Edit2, Trash2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -16,12 +16,9 @@ export default function CategoriesScreen() {
   // Create Modal State
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [form, setForm] = useState({ name: '', description: '' });
-  const [saving, setSaving] = useState(false);
-
-  // View Products Modal State
-  const [selectedCategory, setSelectedCategory] = useState<any>(null);
-  const [categoryProducts, setCategoryProducts] = useState<any[]>([]);
   const [loadingProducts, setLoadingProducts] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Move Modal State
   const [moveModalVisible, setMoveModalVisible] = useState(false);
@@ -47,23 +44,59 @@ export default function CategoriesScreen() {
     fetchCategories().then(() => setRefreshing(false));
   };
 
-  const handleCreate = async () => {
+  const handleSave = async () => {
     if (!form.name) {
       Alert.alert('Error', 'Category name is required');
       return;
     }
     setSaving(true);
     try {
-      await api.post('/categories', form);
-      Alert.alert('Success', 'Category created! 📁');
+      if (isEditing && editingId) {
+        await api.patch(`/categories/${editingId}`, form);
+        Alert.alert('Success', 'Category updated! ✨');
+      } else {
+        await api.post('/categories', form);
+        Alert.alert('Success', 'Category created! 📁');
+      }
       setCreateModalVisible(false);
       setForm({ name: '', description: '' });
+      setIsEditing(false);
+      setEditingId(null);
       fetchCategories();
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.message || 'Failed');
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleEdit = (cat: any) => {
+    setForm({ name: cat.name, description: cat.description || '' });
+    setEditingId(cat.id);
+    setIsEditing(true);
+    setCreateModalVisible(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    Alert.alert(
+      'Confirm Delete',
+      'Are you sure you want to delete this category? It must be empty.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/categories/${id}`);
+              fetchCategories();
+            } catch (error: any) {
+              Alert.alert('Error', error.response?.data?.message || 'Failed to delete');
+            }
+          }
+        }
+      ]
+    );
   };
 
   const fetchCategoryProducts = async (cat: any) => {
@@ -151,6 +184,20 @@ export default function CategoriesScreen() {
                   <Text style={styles.statsText}>{item._count?.products || 0} Products</Text>
                 </View>
               </View>
+              <View style={styles.actionRow}>
+                <TouchableOpacity 
+                  onPress={() => handleEdit(item)}
+                  style={styles.actionBtn}
+                >
+                  <Edit2 size={16} color="rgba(255,255,255,0.4)" />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  onPress={() => handleDelete(item.id)}
+                  style={[styles.actionBtn, { marginLeft: 8 }]}
+                >
+                  <Trash2 size={16} color="rgba(244,63,94,0.6)" />
+                </TouchableOpacity>
+              </View>
               <ChevronRight size={20} color="rgba(255,255,255,0.2)" />
             </TouchableOpacity>
           )}
@@ -174,8 +221,13 @@ export default function CategoriesScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>New Category</Text>
-              <TouchableOpacity onPress={() => setCreateModalVisible(false)}>
+              <Text style={styles.modalTitle}>{isEditing ? 'Edit Category' : 'New Category'}</Text>
+              <TouchableOpacity onPress={() => {
+                setCreateModalVisible(false);
+                setIsEditing(false);
+                setEditingId(null);
+                setForm({ name: '', description: '' });
+              }}>
                 <X size={24} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -205,11 +257,11 @@ export default function CategoriesScreen() {
 
             <TouchableOpacity 
               style={styles.saveButton}
-              onPress={handleCreate}
+              onPress={handleSave}
               disabled={saving}
             >
               <LinearGradient colors={['#f59e0b', '#d97706']} style={styles.saveGradient}>
-                {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>Create Category</Text>}
+                {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveText}>{isEditing ? 'Update Category' : 'Create Category'}</Text>}
               </LinearGradient>
             </TouchableOpacity>
           </View>
@@ -605,6 +657,19 @@ const styles = StyleSheet.create({
   },
   centered: {
     flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  actionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
     alignItems: 'center',
     justifyContent: 'center',
   },
