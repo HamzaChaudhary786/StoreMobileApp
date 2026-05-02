@@ -9,14 +9,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 interface UdharItem {
   productId: string;
   quantity: number;
+  rawQty?: string;
   priceAtTime: number;
   unit: string;
   name: string;
+  mode: 'qty' | 'price';
 }
 
 interface UdharForm {
   items: UdharItem[];
   description: string;
+  paidAmount?: number;
 }
 
 export default function CustomerDetailScreen() {
@@ -41,9 +44,40 @@ export default function CustomerDetailScreen() {
   // Udhar Form State
   const [products, setProducts] = useState<any[]>([]);
   const [udharForm, setUdharForm] = useState<UdharForm>({
-    items: [{ productId: '', quantity: 1, priceAtTime: 0, unit: 'pcs', name: '' }],
-    description: ''
+    items: [{ productId: '', quantity: 1, rawQty: '1', priceAtTime: 0, unit: 'pcs', name: '', mode: 'qty' }],
+    description: '',
+    paidAmount: 0
   });
+
+  const parseSmartQuantity = (input: string, unitPrice: number): number | null => {
+    const str = input.toLowerCase().trim();
+    if (!str) return null;
+
+    // 1. Price Based
+    const priceMatch = str.match(/^(\d+(\.\d+)?)\s*(rs|rupees|rp|rupaye)$/) || str.match(/^(rs|rupees)\s*(\d+(\.\d+)?)$/);
+    if (priceMatch) {
+      const amount = parseFloat(priceMatch[1] || priceMatch[2]);
+      return unitPrice > 0 ? amount / unitPrice : 0;
+    }
+
+    // 2. Local Fractions
+    if (str === 'half kg' || str === 'half kilo' || str === 'aadha kilo' || str === 'aadha' || str === 'half') return 0.5;
+    if (str === 'quarter' || str === 'quarter kg' || str === 'pao' || str === 'paa') return 0.25;
+    if (str === 'three quarter' || str === 'pauna' || str === 'pona') return 0.75;
+    if (str === 'sawa kg' || str === 'sawa') return 1.25;
+    if (str === 'dedh kg' || str === 'dedh') return 1.5;
+    if (str === 'dhayi kg' || str === 'dhayi' || str === 'adhai') return 2.5;
+
+    // 3. Weight Units
+    const gramMatch = str.match(/^(\d+(\.\d+)?)\s*(g|gram|grams)$/);
+    if (gramMatch) return parseFloat(gramMatch[1]) / 1000;
+
+    const kgMatch = str.match(/^(\d+(\.\d+)?)\s*(kg|kilo|kilos|kgm)$/);
+    if (kgMatch) return parseFloat(kgMatch[1]);
+
+    const num = parseFloat(str);
+    return isNaN(num) ? null : num;
+  };
 
   // Product Picker State
   const [udharModalView, setUdharModalView] = useState<'form' | 'picker'>('form');
@@ -111,16 +145,20 @@ export default function CustomerDetailScreen() {
       return;
     }
     setSubmitting(true);
+    const total = udharForm.items.reduce((acc, i) => acc + (i.quantity * i.priceAtTime), 0);
+    const paid = udharForm.paidAmount || 0;
+    
     try {
       await api.post('/customers/transaction', {
         customerId: customerId,
         items: validItems,
-        description: udharForm.description
+        description: udharForm.description,
+        paidAmount: paid
       });
       Alert.alert('Success', 'Udhar entry added! 📦');
       setUdharModalVisible(false);
       setUdharModalView('form');
-      setUdharForm({ items: [{ productId: '', quantity: 1, priceAtTime: 0, unit: 'pcs', name: '' }], description: '' });
+      setUdharForm({ items: [{ productId: '', quantity: 1, rawQty: '1', priceAtTime: 0, unit: 'pcs', name: '', mode: 'qty' }], description: '', paidAmount: 0 });
       fetchCustomerData();
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.message || 'Failed');
@@ -129,7 +167,7 @@ export default function CustomerDetailScreen() {
     }
   };
 
-  const updateUdharItem = (index: number, field: string, value: any) => {
+  const updateUdharItem = (index: number, field: keyof UdharItem, value: any) => {
     const newItems = [...udharForm.items];
     if (field === 'productId') {
       const prod = products.find(p => p.id === value);
@@ -138,7 +176,10 @@ export default function CustomerDetailScreen() {
         productId: value,
         name: prod?.name || '',
         priceAtTime: prod?.salePrice || 0,
-        unit: prod?.unit || 'pcs'
+        unit: prod?.unit || 'pcs',
+        rawQty: '1',
+        quantity: 1,
+        mode: 'qty'
       };
     } else {
       newItems[index] = { ...newItems[index], [field]: value };
@@ -510,6 +551,28 @@ export default function CustomerDetailScreen() {
                 </View>
 
                 <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                  <View style={{ marginTop: 20, padding: 15, backgroundColor: 'rgba(255,255,255,0.03)', borderRadius: 18, borderWidth: 1, borderColor: 'rgba(255,255,255,0.06)' }}>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.formLabel, { color: Colors.dark.amber }]}>Amount Paid Now (₨)</Text>
+                        <TextInput
+                          style={[styles.pickerBtn, { marginTop: 5 }]}
+                          value={(udharForm.paidAmount ?? 0).toString()}
+                          onChangeText={(val) => setUdharForm({...udharForm, paidAmount: parseFloat(val) || 0})}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor="rgba(255,255,255,0.2)"
+                        />
+                      </View>
+                      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                        <Text style={[styles.formLabel, { textAlign: 'right' }]}>Remaining Udhar</Text>
+                        <Text style={{ fontSize: 20, fontWeight: '900', color: '#fff', marginTop: 5 }}>
+                          ₨{(udharForm.items.reduce((acc, i) => acc + (i.quantity * i.priceAtTime), 0) - (udharForm.paidAmount || 0)).toFixed(0)}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
                   {udharForm.items.map((item, idx) => (
                     <View key={idx} style={styles.udharItemForm}>
                       <View style={styles.formRow}>
@@ -528,14 +591,58 @@ export default function CustomerDetailScreen() {
                           </TouchableOpacity>
                         </View>
                         <View style={{ flex: 1, marginLeft: 10 }}>
-                          <Text style={styles.formLabel}>Qty ({getUnitDisplay(item.unit, item.name)})</Text>
+                          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
+                            <Text style={styles.formLabel}>{item.mode === 'price' ? 'Price (₨)' : 'Qty'}</Text>
+                            <View style={{ flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: 2 }}>
+                              <TouchableOpacity 
+                                onPress={() => {
+                                  const newItems = [...udharForm.items];
+                                  newItems[idx].mode = 'qty';
+                                  setUdharForm({...udharForm, items: newItems});
+                                }}
+                                style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: item.mode === 'qty' ? Colors.dark.amber : 'transparent' }}
+                              >
+                                <Text style={{ fontSize: 8, fontWeight: '800', color: item.mode === 'qty' ? '#000' : 'rgba(255,255,255,0.4)' }}>QTY</Text>
+                              </TouchableOpacity>
+                              <TouchableOpacity 
+                                onPress={() => {
+                                  const newItems = [...udharForm.items];
+                                  newItems[idx].mode = 'price';
+                                  setUdharForm({...udharForm, items: newItems});
+                                }}
+                                style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, backgroundColor: item.mode === 'price' ? Colors.dark.amber : 'transparent' }}
+                              >
+                                <Text style={{ fontSize: 8, fontWeight: '800', color: item.mode === 'price' ? '#000' : 'rgba(255,255,255,0.4)' }}>RS</Text>
+                              </TouchableOpacity>
+                            </View>
+                          </View>
                           <TextInput
                             style={styles.pickerBtn}
-                            value={item.quantity.toString()}
-                            onChangeText={(val) => updateUdharItem(idx, 'quantity', Number(val))}
+                            value={item.rawQty || item.quantity.toString()}
+                            onChangeText={(val) => {
+                              const numVal = parseFloat(val);
+                              const newItems = [...udharForm.items];
+                              newItems[idx].rawQty = val;
+                              
+                              if (!isNaN(numVal)) {
+                                if (item.mode === 'price') {
+                                  newItems[idx].quantity = item.priceAtTime > 0 ? numVal / item.priceAtTime : 0;
+                                } else {
+                                  const parsed = parseSmartQuantity(val, item.priceAtTime);
+                                  if (parsed !== null) newItems[idx].quantity = parsed;
+                                }
+                              }
+                              setUdharForm({ ...udharForm, items: newItems });
+                            }}
+                            placeholder={item.mode === 'price' ? "₨" : "Qty"}
+                            placeholderTextColor="rgba(255,255,255,0.2)"
                             keyboardType="numeric"
-                            placeholder="1"
                           />
+                          {item.mode === 'price' && (
+                            <Text style={{ fontSize: 9, color: Colors.dark.amber, fontWeight: '700', marginTop: 4 }}>
+                              = {item.quantity.toFixed(3)} {getUnitDisplay(item.unit, item.name)}
+                            </Text>
+                          )}
                         </View>
                       </View>
                       {udharForm.items.length > 1 && (
@@ -554,7 +661,7 @@ export default function CustomerDetailScreen() {
 
                   <TouchableOpacity 
                     style={styles.addItemBtn}
-                    onPress={() => setUdharForm({ ...udharForm, items: [...udharForm.items, { productId: '', quantity: 1, priceAtTime: 0, unit: 'pcs', name: '' }] })}
+                    onPress={() => setUdharForm({ ...udharForm, items: [...udharForm.items, { productId: '', quantity: 1, rawQty: '1', priceAtTime: 0, unit: 'pcs', name: '', mode: 'qty' }] })}
                   >
                     <Plus size={16} color={Colors.dark.amber} />
                     <Text style={styles.addItemText}>Add Another Item</Text>

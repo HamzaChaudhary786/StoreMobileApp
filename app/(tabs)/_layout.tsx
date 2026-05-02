@@ -4,6 +4,7 @@ import { LayoutDashboard, ShoppingCart, Package, Users } from 'lucide-react-nati
 
 import { Colors } from '@/constants/theme';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import NotificationBell from '@/components/NotificationBell';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -13,6 +14,7 @@ export default function TabLayout() {
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: true,
+        headerRight: () => <NotificationBell />,
         headerStyle: {
           backgroundColor: '#0c0c14',
         },

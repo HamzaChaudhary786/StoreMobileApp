@@ -16,6 +16,7 @@ export default function POSScreen() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [selectedCustomerName, setSelectedCustomerName] = useState<string>('');
   const [discount, setDiscount] = useState(0);
+  const [paidAmount, setPaidAmount] = useState(0);
 
   // Customer picker modal
   const [customerModalVisible, setCustomerModalVisible] = useState(false);
@@ -48,7 +49,7 @@ export default function POSScreen() {
     if (existing) {
       setCart(cart.map(item => item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item));
     } else {
-      setCart([...cart, { ...product, quantity: 1 }]);
+      setCart([...cart, { ...product, quantity: 1, mode: 'qty' }]);
     }
   };
 
@@ -75,12 +76,16 @@ export default function POSScreen() {
     setScannerVisible(true);
   };
 
-  const updateQuantity = (id: string, quantity: number) => {
+  const updateQuantity = (id: string, quantity: number, raw?: string) => {
     if (quantity <= 0) {
       setCart(cart.filter(item => item.id !== id));
       return;
     }
-    setCart(cart.map(item => item.id === id ? { ...item, quantity } : item));
+    setCart(cart.map(item => item.id === id ? { ...item, quantity, rawQty: raw } : item));
+  };
+
+  const toggleMode = (id: string) => {
+    setCart(cart.map(item => item.id === id ? { ...item, mode: item.mode === 'qty' ? 'price' : 'qty', rawQty: '' } : item));
   };
 
   const subtotal = cart.reduce((acc, item) => acc + (item.salePrice * item.quantity), 0);
@@ -103,7 +108,8 @@ export default function POSScreen() {
             quantity: item.quantity,
             priceAtTime: item.salePrice
           })),
-          description: `Mobile POS Udhar Sale: ${cart.map(i => i.name).join(', ')}`
+          description: `Mobile POS Udhar Sale: ${cart.map(i => i.name).join(', ')}`,
+          paidAmount: paidAmount
         });
       } else {
         await api.post('/orders', {
@@ -122,6 +128,7 @@ export default function POSScreen() {
       setSelectedCustomerId('');
       setSelectedCustomerName('');
       setDiscount(0);
+      setPaidAmount(0);
       fetchData();
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.message || 'Failed to record sale');
@@ -269,34 +276,72 @@ export default function POSScreen() {
         renderItem={({ item }) => {
           const cartItem = cart.find(c => c.id === item.id);
           return (
-            <TouchableOpacity 
-              style={styles.productCard}
-              onPress={() => addToCart(item)}
-              disabled={item.stock <= 0}
-            >
-              <View style={{ flex: 1 }}>
+            <View style={styles.productCard}>
+              <TouchableOpacity 
+                style={{ flex: 1 }}
+                onPress={() => addToCart(item)}
+                disabled={item.stock <= 0}
+              >
                 <Text style={styles.productName}>{item.name}</Text>
                 <Text style={styles.productPrice}>₨{item.salePrice} / {item.unit}</Text>
                 <Text style={[styles.productStock, item.stock <= 5 && { color: Colors.dark.rose }]}>
                   Stock: {item.stock.toFixed(1)} {item.unit}
                 </Text>
-              </View>
+              </TouchableOpacity>
               {cartItem ? (
-                <View style={styles.quantityControls}>
-                  <TouchableOpacity onPress={() => updateQuantity(item.id, cartItem.quantity - 1)}>
-                    <Minus size={18} color={Colors.dark.amber} />
-                  </TouchableOpacity>
-                  <Text style={styles.quantityText}>{cartItem.quantity}</Text>
-                  <TouchableOpacity onPress={() => addToCart(item)}>
-                    <Plus size={18} color={Colors.dark.amber} />
-                  </TouchableOpacity>
+                <View style={styles.cartControlWrapper}>
+                  <View style={styles.modeToggleMini}>
+                    <TouchableOpacity 
+                      onPress={() => toggleMode(item.id)}
+                      style={[styles.miniModeBtn, cartItem.mode === 'qty' && styles.miniModeBtnActive]}
+                    >
+                      <Text style={[styles.miniModeText, cartItem.mode === 'qty' && styles.miniModeTextActive]}>QTY</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      onPress={() => toggleMode(item.id)}
+                      style={[styles.miniModeBtn, cartItem.mode === 'price' && styles.miniModeBtnActive]}
+                    >
+                      <Text style={[styles.miniModeText, cartItem.mode === 'price' && styles.miniModeTextActive]}>RS</Text>
+                    </TouchableOpacity>
+                  </View>
+                  
+                  <View style={styles.quantityControls}>
+                    <TouchableOpacity onPress={() => updateQuantity(item.id, cartItem.quantity - 1)}>
+                      <Minus size={16} color={Colors.dark.amber} />
+                    </TouchableOpacity>
+                    <TextInput
+                      style={styles.quantityInput}
+                      value={cartItem.rawQty !== undefined ? cartItem.rawQty : cartItem.quantity.toString()}
+                      keyboardType="numeric"
+                      onChangeText={(val) => {
+                        const num = parseFloat(val);
+                        if (cartItem.mode === 'price') {
+                          if (!isNaN(num)) updateQuantity(item.id, num / item.salePrice, val);
+                          else updateQuantity(item.id, 0, val);
+                        } else {
+                          if (!isNaN(num)) updateQuantity(item.id, num, val);
+                          else updateQuantity(item.id, 0, val);
+                        }
+                      }}
+                    />
+                    <TouchableOpacity onPress={() => updateQuantity(item.id, cartItem.quantity + 1)}>
+                      <Plus size={16} color={Colors.dark.amber} />
+                    </TouchableOpacity>
+                  </View>
+                  {cartItem.mode === 'price' && (
+                    <Text style={styles.calcPreview}>{cartItem.quantity.toFixed(2)} {item.unit}</Text>
+                  )}
                 </View>
               ) : (
-                <View style={[styles.addButton, item.stock <= 0 && { opacity: 0.3 }]}>
+                <TouchableOpacity 
+                  onPress={() => addToCart(item)}
+                  disabled={item.stock <= 0}
+                  style={[styles.addButton, item.stock <= 0 && { opacity: 0.3 }]}
+                >
                   <Plus size={20} color="#0a0a0f" />
-                </View>
+                </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </View>
           );
         }}
         contentContainerStyle={styles.listContent}
@@ -339,6 +384,28 @@ export default function POSScreen() {
               onChangeText={(val) => setDiscount(Number(val) || 0)}
             />
           </View>
+          {isUdhar && (
+            <View style={{ marginBottom: 15, padding: 12, backgroundColor: 'rgba(244,63,94,0.08)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(244,63,94,0.2)' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                <View>
+                  <Text style={{ fontSize: 10, color: Colors.dark.rose, fontWeight: '800', textTransform: 'uppercase', marginBottom: 4 }}>Initial Payment (₨)</Text>
+                  <TextInput
+                    style={{ fontSize: 18, color: '#fff', fontWeight: '800', padding: 0 }}
+                    value={paidAmount.toString()}
+                    onChangeText={(val) => setPaidAmount(parseFloat(val) || 0)}
+                    keyboardType="numeric"
+                    placeholder="0"
+                    placeholderTextColor="rgba(255,255,255,0.2)"
+                  />
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: '800', textTransform: 'uppercase', marginBottom: 4 }}>Remaining Udhar</Text>
+                  <Text style={{ fontSize: 18, color: Colors.dark.rose, fontWeight: '800' }}>₨{(total - paidAmount).toFixed(0)}</Text>
+                </View>
+              </View>
+            </View>
+          )}
+
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Total Payable</Text>
             <Text style={[styles.totalValue, isUdhar && { color: Colors.dark.rose }]}>
@@ -612,6 +679,45 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     minWidth: 18,
     textAlign: 'center',
+  },
+  quantityInput: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    minWidth: 40,
+    textAlign: 'center',
+    padding: 0,
+  },
+  cartControlWrapper: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  modeToggleMini: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 6,
+    padding: 2,
+  },
+  miniModeBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  miniModeBtnActive: {
+    backgroundColor: Colors.dark.amber,
+  },
+  miniModeText: {
+    fontSize: 8,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.4)',
+  },
+  miniModeTextActive: {
+    color: '#000',
+  },
+  calcPreview: {
+    fontSize: 9,
+    color: Colors.dark.amber,
+    fontWeight: '700',
   },
   checkoutContainer: {
     position: 'absolute',
