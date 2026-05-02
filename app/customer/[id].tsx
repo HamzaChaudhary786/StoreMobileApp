@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { api } from '../../lib/api';
 import { Colors } from '../../constants/theme';
-import { ChevronLeft, Phone, MapPin, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle2, DollarSign, Plus, X, MessageSquare, Search, Package } from 'lucide-react-native';
+import { ChevronLeft, Phone, MapPin, ArrowUpRight, ArrowDownLeft, Clock, CheckCircle2, DollarSign, Plus, X, MessageSquare, Search, Package, Trash2 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface UdharItem {
@@ -32,6 +32,8 @@ export default function CustomerDetailScreen() {
   const [payAmount, setPayAmount] = useState('');
   const [payNote, setPayNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState('');
 
   // Udhar Form State
   const [products, setProducts] = useState<any[]>([]);
@@ -131,6 +133,26 @@ export default function CustomerDetailScreen() {
     setUdharForm({ ...udharForm, items: newItems });
   };
 
+
+  const handleDeleteCustomer = async () => {
+    if (!customer || deleteConfirmName !== customer.name) {
+      Alert.alert('Error', 'Customer name does not match');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await api.delete(`/customers/${id}`);
+      setDeleteModalVisible(false);
+      Alert.alert('Success', 'Customer deleted successfully');
+      router.back();
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to delete customer');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.centered}>
@@ -168,16 +190,47 @@ export default function CustomerDetailScreen() {
         <Text style={styles.historyTitle}>{item.description || 'Udhar Purchase'}</Text>
       )}
 
-      {!item.isPaid && (
+      <View style={styles.actionRow}>
+        {!item.isPaid && (
+          <TouchableOpacity 
+            style={[styles.miniActionBtn, { backgroundColor: 'rgba(16,185,129,0.1)' }]}
+            onPress={() => handlePaySpecificTransaction(item)}
+          >
+            <Text style={[styles.miniActionBtnText, { color: '#10b981' }]}>MARK PAID</Text>
+          </TouchableOpacity>
+        )}
         <TouchableOpacity 
-          style={styles.payTxBtn}
-          onPress={() => handlePaySpecificTransaction(item)}
+          style={[styles.miniActionBtn, { backgroundColor: 'rgba(244,63,94,0.1)' }]}
+          onPress={() => handleRevertTransaction(item)}
         >
-          <Text style={styles.payTxBtnText}>MARK AS PAID</Text>
+          <Text style={[styles.miniActionBtnText, { color: '#fb7185' }]}>REVERT SALE</Text>
         </TouchableOpacity>
-      )}
+      </View>
     </View>
   );
+
+  const handleRevertTransaction = (transaction: any) => {
+    Alert.alert(
+      "Confirm Revert",
+      `Are you sure you want to revert this transaction? Stock will be restored and the customer's balance will be reduced by ₨${transaction.totalAmount}.`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Confirm Revert", 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.delete(`/customers/transaction/${transaction.id}`);
+              Alert.alert("Success", "Transaction reverted and stock restored!");
+              fetchCustomerData();
+            } catch (err: any) {
+              Alert.alert("Error", err.response?.data?.message || "Failed to revert");
+            }
+          } 
+        }
+      ]
+    );
+  };
 
   const handlePaySpecificTransaction = (transaction: any) => {
     Alert.alert(
@@ -224,6 +277,12 @@ export default function CustomerDetailScreen() {
           <ChevronLeft size={28} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.title}>Customer Profile</Text>
+        <TouchableOpacity 
+          style={styles.deleteHeaderBtn}
+          onPress={() => setDeleteModalVisible(true)}
+        >
+          <Trash2 size={22} color={Colors.dark.rose} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -236,18 +295,18 @@ export default function CustomerDetailScreen() {
         >
           <View style={styles.profileTop}>
             <View style={styles.avatarLarge}>
-              <Text style={styles.avatarTextLarge}>{customer.name.charAt(0).toUpperCase()}</Text>
+              <Text style={styles.avatarTextLarge}>{customer?.name?.charAt(0).toUpperCase() || '?'}</Text>
             </View>
             <View style={styles.profileInfo}>
-              <Text style={styles.customerNameLarge}>{customer.name}</Text>
+              <Text style={styles.customerNameLarge}>{customer?.name || '---'}</Text>
               <View style={styles.infoRow}>
                 <Phone size={14} color="rgba(255,255,255,0.4)" />
-                <Text style={styles.infoTextLarge}>{customer.phone}</Text>
+                <Text style={styles.infoTextLarge}>{customer?.phone || '---'}</Text>
               </View>
-              {customer.address && (
+              {customer?.address && (
                 <View style={styles.infoRow}>
                   <MapPin size={14} color="rgba(255,255,255,0.4)" />
-                  <Text style={styles.infoTextLarge}>{customer.address}</Text>
+                  <Text style={styles.infoTextLarge}>{customer?.address}</Text>
                 </View>
               )}
             </View>
@@ -256,8 +315,8 @@ export default function CustomerDetailScreen() {
           <View style={styles.balanceSection}>
             <View>
               <Text style={styles.balanceLabelLarge}>Outstanding Udhar</Text>
-              <Text style={[styles.balanceValueLarge, customer.currentBalance > 0 && { color: Colors.dark.rose }]}>
-                ₨{customer.currentBalance.toLocaleString()}
+              <Text style={[styles.balanceValueLarge, (customer?.currentBalance || 0) > 0 && { color: Colors.dark.rose }]}>
+                ₨{(customer?.currentBalance || 0).toLocaleString()}
               </Text>
             </View>
           </View>
@@ -299,7 +358,7 @@ export default function CustomerDetailScreen() {
 
         <View style={styles.listSection}>
           {activeTab === 'history' ? (
-            customer.udharTransactions?.length > 0 ? (
+            customer?.udharTransactions?.length > 0 ? (
               customer.udharTransactions.map((item: any) => renderTransaction({ item }))
             ) : (
               <View style={styles.emptyContainer}>
@@ -308,7 +367,7 @@ export default function CustomerDetailScreen() {
               </View>
             )
           ) : (
-            customer.paymentLogs?.length > 0 ? (
+            customer?.paymentLogs?.length > 0 ? (
               customer.paymentLogs.map((item: any) => renderPayment({ item }))
             ) : (
               <View style={styles.emptyContainer}>
@@ -332,7 +391,7 @@ export default function CustomerDetailScreen() {
             <View style={styles.modalHeader}>
               <View>
                 <Text style={styles.modalTitle}>Record Payment</Text>
-                <Text style={styles.modalSubTitle}>For {customer.name}</Text>
+                <Text style={styles.modalSubTitle}>For {customer?.name || '---'}</Text>
               </View>
               <TouchableOpacity onPress={() => setPayModalVisible(false)}>
                 <X size={24} color="#fff" />
@@ -341,7 +400,7 @@ export default function CustomerDetailScreen() {
 
             <View style={styles.outstandingSummary}>
               <Text style={styles.summaryLabel}>Outstanding Balance</Text>
-              <Text style={styles.summaryValue}>₨{customer.currentBalance.toLocaleString()}</Text>
+              <Text style={styles.summaryValue}>₨{(customer?.currentBalance || 0).toLocaleString()}</Text>
             </View>
 
             <View style={styles.inputGroup}>
@@ -547,6 +606,56 @@ export default function CustomerDetailScreen() {
                 />
               </>
             )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={deleteModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={[styles.modalTitle, { color: Colors.dark.rose }]}>Delete Customer?</Text>
+                <Text style={styles.modalSubTitle}>This action is irreversible</Text>
+              </View>
+              <TouchableOpacity onPress={() => { setDeleteModalVisible(false); setDeleteConfirmName(''); }}>
+                <X size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.deleteGuardBox}>
+              <Text style={styles.deleteGuardText}>
+                To confirm deletion, please type the customer name:
+              </Text>
+              <Text style={styles.deleteTargetName}>{customer?.name}</Text>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <TextInput
+                style={styles.modalInput}
+                value={deleteConfirmName}
+                onChangeText={setDeleteConfirmName}
+                placeholder="Enter customer name..."
+                placeholderTextColor="rgba(255,255,255,0.2)"
+                autoCapitalize="none"
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.confirmBtn, { marginTop: 20 }]}
+              onPress={handleDeleteCustomer}
+              disabled={submitting || deleteConfirmName !== customer?.name}
+            >
+              <LinearGradient colors={['#f43f5e', '#e11d48']} style={styles.confirmGradient}>
+                {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.confirmText}>Permanently Delete</Text>}
+              </LinearGradient>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1021,6 +1130,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     marginBottom: 2,
   },
+  miniActionBtn: {
+    flex: 1,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniActionBtnText: {
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
   productPickerPrice: {
     fontSize: 12,
     color: Colors.dark.amber,
@@ -1030,5 +1156,31 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: 'rgba(255,255,255,0.3)',
     fontWeight: '700',
+  },
+  deleteHeaderBtn: {
+    position: 'absolute',
+    right: 20,
+    top: Platform.OS === 'ios' ? 62 : 42,
+  },
+  deleteGuardBox: {
+    backgroundColor: 'rgba(244,63,94,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(244,63,94,0.2)',
+    padding: 15,
+    borderRadius: 15,
+    marginBottom: 20,
+  },
+  deleteGuardText: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  deleteTargetName: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '900',
+    textAlign: 'center',
   },
 });
