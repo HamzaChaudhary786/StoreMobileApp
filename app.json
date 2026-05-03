@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "mobile",
-    "slug": "storemanage",
+    "name": "ManageStore",
+    "slug": "managestore",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "y",
+      "bundleIdentifier": "com.hamza_sattar007.managestore",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -28,7 +28,7 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO"
       ],
-      "package": "com.hamza_sattar007.mobile",
+      "package": "com.hamza_sattar007.managestore",
       "usesCleartextTraffic": true
     },
     "web": {
@@ -64,7 +64,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "41f58496-2f3a-42fc-a269-846fdd144a4d"
+        "projectId": "1adcf1dd-57d6-4a46-9fc4-99e3f4328650"
       }
     },
     "owner": "hamza_sattar007"

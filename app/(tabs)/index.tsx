@@ -6,16 +6,43 @@ import { TrendingUp, Users, Package, AlertCircle, Layers, FileText, BarChart2, C
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
+interface DashboardStats {
+  todayRevenue: number;
+  todayProfit: number;
+  totalUdhar: number;
+  totalProducts: number;
+  lowStock: number;
+  outOfStock: number;
+  recentActivity: Array<{
+    id: string;
+    name: string;
+    amount: number;
+    type: 'CASH' | 'UDHAR';
+    createdAt: string;
+  }>;
+}
+
+interface StatCardProps {
+  title: string;
+  value: string | number;
+  icon: React.ElementType;
+  colors: string[];
+  glowColor: string;
+}
+
+
 export default function DashboardScreen() {
   const router = useRouter();
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
+
   const [refreshing, setRefreshing] = useState(false);
 
   const fetchStats = async () => {
     try {
       const response = await api.get('/admin/stats');
-      setStats(response.data);
+      setStats(response.data as DashboardStats);
     } catch (error) {
+
       console.error('Failed to fetch stats', error);
     }
   };
@@ -29,7 +56,7 @@ export default function DashboardScreen() {
     fetchStats().then(() => setRefreshing(false));
   }, []);
 
-  const StatCard = ({ title, value, icon: Icon, colors, glowColor }: any) => (
+  const StatCard = ({ title, value, icon: Icon, colors, glowColor }: StatCardProps) => (
     <LinearGradient colors={colors} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
       <View style={styles.cardContent}>
         <View style={styles.cardHeader}>
@@ -41,6 +68,7 @@ export default function DashboardScreen() {
       <View style={[styles.cardGlow, { backgroundColor: glowColor }]} />
     </LinearGradient>
   );
+
 
   return (
     <ScrollView
@@ -162,6 +190,17 @@ export default function DashboardScreen() {
             <ChevronRight size={20} color="rgba(255,255,255,0.1)" />
           </TouchableOpacity>
 
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/bulk-upload')}>
+            <LinearGradient colors={['rgba(99,102,241,0.15)', 'rgba(99,102,241,0.05)']} style={styles.actionIcon}>
+              <FileText size={22} color="#6366f1" />
+            </LinearGradient>
+            <View style={styles.actionInfo}>
+              <Text style={styles.actionTitle}>Bulk Import</Text>
+              <Text style={styles.actionDesc}>Upload CSV products</Text>
+            </View>
+            <ChevronRight size={20} color="rgba(255,255,255,0.1)" />
+          </TouchableOpacity>
+
           <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/categories')}>
             <LinearGradient colors={['rgba(245,158,11,0.15)', 'rgba(245,158,11,0.05)']} style={styles.actionIcon}>
               <Layers size={22} color={Colors.dark.amber} />
@@ -226,8 +265,8 @@ export default function DashboardScreen() {
         </View>
 
         <View style={styles.activityList}>
-          {stats?.recentActivity?.length > 0 ? (
-            stats.recentActivity.map((activity: any) => (
+          {stats && stats.recentActivity && stats.recentActivity.length > 0 ? (
+            stats.recentActivity.map((activity) => (
               <View key={activity.id} style={styles.activityItem}>
                 <View style={[styles.activityIcon, { backgroundColor: activity.type === 'UDHAR' ? 'rgba(244,63,94,0.1)' : 'rgba(16,185,129,0.1)' }]}>
                   {activity.type === 'UDHAR' ? (
@@ -250,6 +289,7 @@ export default function DashboardScreen() {
                 </View>
               </View>
             ))
+
           ) : (
             <View style={styles.emptyContainer}>
               <Clock size={40} color="rgba(255,255,255,0.05)" />
