@@ -29,6 +29,7 @@ function InitialLayout() {
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="categories" options={{ headerShown: false }} />
+      <Stack.Screen name="notifications" options={{ headerShown: false }} />
       <Stack.Screen name="reports" options={{ headerShown: false }} />
       <Stack.Screen name="stock" options={{ headerShown: false }} />
       <Stack.Screen name="add-product" options={{ headerShown: false }} />

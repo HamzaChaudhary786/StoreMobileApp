@@ -17,6 +17,10 @@ export default function POSScreen() {
   const [selectedCustomerName, setSelectedCustomerName] = useState<string>('');
   const [discount, setDiscount] = useState(0);
   const [paidAmount, setPaidAmount] = useState(0);
+  const [isPaymentOnly, setIsPaymentOnly] = useState(false);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentNote, setPaymentNote] = useState('');
+
 
   // Customer picker modal
   const [customerModalVisible, setCustomerModalVisible] = useState(false);
@@ -92,6 +96,37 @@ export default function POSScreen() {
   const total = Math.max(0, subtotal - discount);
 
   const handleCheckout = async () => {
+    if (isPaymentOnly) {
+      if (!selectedCustomerId) {
+        Alert.alert('Selection Required', 'Please select a customer');
+        return;
+      }
+      if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
+        Alert.alert('Invalid Amount', 'Please enter a valid payment amount');
+        return;
+      }
+      setLoading(true);
+      try {
+        await api.post('/customers/pay', {
+          customerId: selectedCustomerId,
+          amount: parseFloat(paymentAmount),
+          note: paymentNote || 'Direct Udhar Payment'
+        });
+        Alert.alert('Success', 'Payment recorded successfully! 💰');
+        setIsPaymentOnly(false);
+        setPaymentAmount('');
+        setPaymentNote('');
+        setSelectedCustomerId('');
+        setSelectedCustomerName('');
+        fetchData();
+      } catch (error: any) {
+        Alert.alert('Error', error.response?.data?.message || 'Failed to record payment');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (cart.length === 0) return;
     if (isUdhar && !selectedCustomerId) {
       Alert.alert('Selection Required', 'Please select a customer for Udhar sale');
@@ -161,6 +196,18 @@ export default function POSScreen() {
         >
           <Scan size={24} color={Colors.dark.amber} />
         </TouchableOpacity>
+        <TouchableOpacity 
+          style={[styles.paymentOnlyBtn, isPaymentOnly && styles.paymentOnlyBtnActive]}
+          onPress={() => {
+            setIsPaymentOnly(!isPaymentOnly);
+            if (!isPaymentOnly) {
+              setCart([]);
+              setIsUdhar(true);
+            }
+          }}
+        >
+          <Banknote size={24} color={isPaymentOnly ? '#0a0a0f' : Colors.dark.amber} />
+        </TouchableOpacity>
       </View>
 
       {cart.length > 0 && (
@@ -182,7 +229,7 @@ export default function POSScreen() {
         </View>
       )}
 
-      {isUdhar && cart.length > 0 && (
+      {isUdhar && (cart.length > 0 || isPaymentOnly) && (
         <TouchableOpacity
           style={styles.customerSelector}
           onPress={() => setCustomerModalVisible(true)}
@@ -345,6 +392,48 @@ export default function POSScreen() {
           );
         }}
         contentContainerStyle={styles.listContent}
+        ListHeaderComponent={
+          isPaymentOnly ? (
+            <View style={styles.paymentOnlyContainer}>
+              <Text style={styles.paymentOnlyTitle}>Record Direct Payment</Text>
+              <Text style={styles.paymentOnlyDesc}>Reduce customer Udhar balance without a sale</Text>
+              
+              <View style={styles.paymentInputGroup}>
+                <Text style={styles.paymentLabel}>Amount to Pay (₨)</Text>
+                <TextInput
+                  style={styles.paymentInput}
+                  value={paymentAmount}
+                  onChangeText={setPaymentAmount}
+                  keyboardType="numeric"
+                  placeholder="0"
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                />
+              </View>
+
+              <View style={styles.paymentInputGroup}>
+                <Text style={styles.paymentLabel}>Note (Optional)</Text>
+                <TextInput
+                  style={[styles.paymentInput, { height: 80, textAlignVertical: 'top', paddingTop: 12 }]}
+                  value={paymentNote}
+                  onChangeText={setPaymentNote}
+                  placeholder="e.g. Paid half of remaining balance"
+                  placeholderTextColor="rgba(255,255,255,0.2)"
+                  multiline
+                />
+              </View>
+
+              <TouchableOpacity 
+                style={styles.payNowBtn}
+                onPress={handleCheckout}
+                disabled={loading}
+              >
+                <LinearGradient colors={['#10b981', '#059669']} style={styles.payNowGradient}>
+                  {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.payNowText}>Record Payment Now</Text>}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          ) : null
+        }
       />
 
       <Modal
@@ -512,6 +601,76 @@ const styles = StyleSheet.create({
   },
   activeTypeText: {
     color: '#fff',
+  },
+  paymentOnlyBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.2)',
+  },
+  paymentOnlyBtnActive: {
+    backgroundColor: '#10b981',
+  },
+  paymentOnlyContainer: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 24,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+    marginBottom: 20,
+  },
+  paymentOnlyTitle: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  paymentOnlyDesc: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.4)',
+    fontWeight: '600',
+    marginBottom: 20,
+  },
+  paymentInputGroup: {
+    marginBottom: 15,
+  },
+  paymentLabel: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.5)',
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  paymentInput: {
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    height: 50,
+    paddingHorizontal: 15,
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  payNowBtn: {
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginTop: 10,
+  },
+  payNowGradient: {
+    height: 54,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  payNowText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '800',
   },
   customerSelector: {
     flexDirection: 'row',

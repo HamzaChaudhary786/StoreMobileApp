@@ -5,10 +5,28 @@ import { Colors } from '../constants/theme';
 import { ChevronLeft, Layers, Plus, X, Search, Package, ChevronRight, ArrowRightLeft, Move, Edit2, Trash2 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
+ 
+interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  _count?: {
+    products: number;
+  };
+}
+
+interface Product {
+  id: string;
+  name: string;
+  salePrice: number;
+  stock: number;
+  unit: string;
+}
+
 
 export default function CategoriesScreen() {
   const router = useRouter();
-  const [categories, setCategories] = useState<any[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState('');
@@ -19,6 +37,10 @@ export default function CategoriesScreen() {
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [categoryProducts, setCategoryProducts] = useState<Product[]>([]);
+
 
   // Move Modal State
   const [moveModalVisible, setMoveModalVisible] = useState(false);
@@ -27,7 +49,8 @@ export default function CategoriesScreen() {
   const fetchCategories = async () => {
     try {
       const response = await api.get('/categories');
-      setCategories(response.data);
+      setCategories(response.data as Category[]);
+
     } catch (error) {
       console.error('Failed to fetch categories', error);
     } finally {
@@ -70,7 +93,8 @@ export default function CategoriesScreen() {
     }
   };
 
-  const handleEdit = (cat: any) => {
+  const handleEdit = (cat: Category) => {
+
     setForm({ name: cat.name, description: cat.description || '' });
     setEditingId(cat.id);
     setIsEditing(true);
@@ -99,12 +123,14 @@ export default function CategoriesScreen() {
     );
   };
 
-  const fetchCategoryProducts = async (cat: any) => {
+  const fetchCategoryProducts = async (cat: Category) => {
+
     setSelectedCategory(cat);
     setLoadingProducts(true);
     try {
       const response = await api.get('/products', { params: { category: cat.id } });
-      setCategoryProducts(response.data);
+      setCategoryProducts(response.data as Product[]);
+
     } catch (error) {
       console.error('Failed to fetch products', error);
     } finally {
@@ -118,8 +144,9 @@ export default function CategoriesScreen() {
       Alert.alert('Success', 'Product moved! 📦');
       setMoveModalVisible(false);
       setProductToMove(null);
-      fetchCategoryProducts(selectedCategory);
+      if (selectedCategory) fetchCategoryProducts(selectedCategory);
       fetchCategories();
+
     } catch (error) {
       Alert.alert('Error', 'Failed to move product');
     }
@@ -166,7 +193,8 @@ export default function CategoriesScreen() {
           data={filteredCategories}
           keyExtractor={(item) => item.id}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#fff" />}
-          renderItem={({ item }) => (
+          renderItem={({ item }: { item: Category }) => (
+
             <TouchableOpacity 
               style={styles.categoryCard}
               onPress={() => fetchCategoryProducts(item)}
@@ -294,7 +322,8 @@ export default function CategoriesScreen() {
               data={categoryProducts}
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.modalListContent}
-              renderItem={({ item }) => (
+              renderItem={({ item }: { item: Product }) => (
+
                 <View style={styles.productItem}>
                   <View style={styles.productIcon}>
                     <Text style={styles.productLetter}>{item.name.charAt(0).toUpperCase()}</Text>

@@ -33,7 +33,7 @@ export default function NotificationBell() {
   return (
     <TouchableOpacity 
       style={styles.container} 
-      onPress={() => router.push('/notifications')}
+      onPress={() => router.push('/notifications' as any)}
     >
       <Bell size={22} color="#fff" />
       {unreadCount > 0 && (
