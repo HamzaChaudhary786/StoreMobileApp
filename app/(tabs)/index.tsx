@@ -26,7 +26,7 @@ interface StatCardProps {
   title: string;
   value: string | number;
   icon: React.ElementType;
-  colors: string[];
+  colors: readonly [string, string, ...string[]];
   glowColor: string;
 }
 
@@ -190,7 +190,7 @@ export default function DashboardScreen() {
             <ChevronRight size={20} color="rgba(255,255,255,0.1)" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/bulk-upload')}>
+          <TouchableOpacity style={styles.actionCard} onPress={() => router.push('/bulk-upload' as any)}>
             <LinearGradient colors={['rgba(99,102,241,0.15)', 'rgba(99,102,241,0.05)']} style={styles.actionIcon}>
               <FileText size={22} color="#6366f1" />
             </LinearGradient>
