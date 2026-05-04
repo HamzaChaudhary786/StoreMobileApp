@@ -58,10 +58,34 @@ export default function CustomersScreen() {
     }
   };
 
-  const filteredCustomers = customers.filter((c: any) =>
-    (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
-    (c.phone || '').includes(search)
-  );
+  const filteredCustomers = customers
+    .filter(c => {
+      if (!search) return true;
+      const searchLower = search.toLowerCase();
+      const nameLower = (c.name || '').toLowerCase();
+      const phoneLower = (c.phone || '').toLowerCase();
+      
+      const words = searchLower.split(/\s+/).filter(w => w.length > 0);
+      return words.every(word => nameLower.includes(word) || phoneLower.includes(word));
+    })
+    .sort((a, b) => {
+      if (!search) return 0;
+      const searchLower = search.toLowerCase();
+      const aName = (a.name || '').toLowerCase();
+      const bName = (b.name || '').toLowerCase();
+      
+      const aExact = aName === searchLower || a.phone === searchLower;
+      const bExact = bName === searchLower || b.phone === searchLower;
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+      
+      const aStarts = aName.startsWith(searchLower) || (a.phone || '').startsWith(searchLower);
+      const bStarts = bName.startsWith(searchLower) || (b.phone || '').startsWith(searchLower);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+      
+      return aName.localeCompare(bName);
+    });
 
   const totalOutstanding = customers.reduce((acc, c) => acc + (c.currentBalance || 0), 0);
   const activeDebtors = customers.filter(c => (c.currentBalance || 0) > 0).length;

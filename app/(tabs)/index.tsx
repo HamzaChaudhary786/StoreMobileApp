@@ -56,17 +56,24 @@ export default function DashboardScreen() {
     fetchStats().then(() => setRefreshing(false));
   }, []);
 
-  const StatCard = ({ title, value, icon: Icon, colors, glowColor }: StatCardProps) => (
-    <LinearGradient colors={colors} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
-      <View style={styles.cardContent}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{title}</Text>
-          <Icon size={18} color="rgba(255,255,255,0.6)" />
+  const StatCard = ({ title, value, icon: Icon, colors, glowColor, onPress }: StatCardProps & { onPress?: () => void }) => (
+    <TouchableOpacity 
+      style={styles.cardWrapper} 
+      onPress={onPress}
+      disabled={!onPress}
+      activeOpacity={0.8}
+    >
+      <LinearGradient colors={colors} style={styles.card} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+        <View style={styles.cardContent}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>{title}</Text>
+            <Icon size={18} color="rgba(255,255,255,0.6)" />
+          </View>
+          <Text style={styles.cardValue}>{value}</Text>
         </View>
-        <Text style={styles.cardValue}>{value}</Text>
-      </View>
-      <View style={[styles.cardGlow, { backgroundColor: glowColor }]} />
-    </LinearGradient>
+        <View style={[styles.cardGlow, { backgroundColor: glowColor }]} />
+      </LinearGradient>
+    </TouchableOpacity>
   );
 
 
@@ -81,7 +88,7 @@ export default function DashboardScreen() {
           <Text style={styles.greeting}>Welcome Back,</Text>
           <Text style={styles.businessName}>Store Admin 👋</Text>
         </View>
-        <TouchableOpacity style={styles.profileBtn}>
+        <TouchableOpacity style={styles.profileBtn} onPress={() => router.push('/notifications' as any)}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>SA</Text>
           </View>
@@ -139,11 +146,12 @@ export default function DashboardScreen() {
           </View>
           <View style={styles.gridRow}>
             <StatCard
-              title="Active Inventory"
-              value={stats?.totalProducts || '0'}
+              title="Out of Stock"
+              value={stats?.outOfStock || '0'}
               icon={Package}
               colors={['#6366f1', '#3730a3']}
               glowColor="rgba(99,102,241,0.2)"
+              onPress={() => router.push('/out-of-stock' as any)}
             />
             <StatCard
               title="Low Stock"
@@ -151,6 +159,7 @@ export default function DashboardScreen() {
               icon={AlertCircle}
               colors={['#f43f5e', '#9f1239']}
               glowColor="rgba(244,63,94,0.2)"
+              onPress={() => router.push('/low-stock' as any)}
             />
           </View>
         </View>
@@ -217,8 +226,8 @@ export default function DashboardScreen() {
               <BarChart2 size={22} color="#10b981" />
             </LinearGradient>
             <View style={styles.actionInfo}>
-              <Text style={styles.actionTitle}>Inventory Health</Text>
-              <Text style={styles.actionDesc}>Stock & Alerts</Text>
+              <Text style={styles.actionTitle}>Stock Refill</Text>
+              <Text style={styles.actionDesc}>Update stock & alerts</Text>
             </View>
             <ChevronRight size={20} color="rgba(255,255,255,0.1)" />
           </TouchableOpacity>
@@ -426,6 +435,9 @@ const styles = StyleSheet.create({
   gridRow: {
     flexDirection: 'row',
     gap: 15,
+  },
+  cardWrapper: {
+    flex: 1,
   },
   card: {
     flex: 1,

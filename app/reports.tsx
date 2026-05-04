@@ -39,21 +39,40 @@ export default function ReportsScreen() {
   const getDateRange = (p: PeriodType) => {
     const now = new Date();
     const end = new Date(now);
-    end.setHours(23, 59, 59, 999);
     const start = new Date(now);
-    start.setHours(0, 0, 0, 0);
 
-    if (p === 'week') start.setDate(start.getDate() - 7);
-    else if (p === 'month') start.setMonth(start.getMonth() - 1);
-    else if (p === 'custom') {
-      return {
-        startDate: customStart || start.toISOString().split('T')[0],
-        endDate: customEnd || end.toISOString().split('T')[0],
-      };
+    if (p === 'today') {
+      // Current day in local time
+    } else if (p === 'week') {
+      start.setDate(start.getDate() - 7);
+    } else if (p === 'month') {
+      start.setMonth(start.getMonth() - 1);
     }
+
+    const formatDate = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    let startStr = formatDate(start);
+    let endStr = formatDate(end);
+
+    if (p === 'custom') {
+      startStr = customStart || startStr;
+      endStr = customEnd || endStr;
+    }
+
+    const [sy, sm, sd] = startStr.split('-');
+    const [ey, em, ed] = endStr.split('-');
+    
+    const localStart = new Date(Number(sy), Number(sm) - 1, Number(sd), 0, 0, 0, 0);
+    const localEnd = new Date(Number(ey), Number(em) - 1, Number(ed), 23, 59, 59, 999);
+
     return {
-      startDate: start.toISOString().split('T')[0],
-      endDate: end.toISOString().split('T')[0],
+      startDate: localStart.toISOString(),
+      endDate: localEnd.toISOString(),
     };
   };
 
@@ -143,6 +162,18 @@ export default function ReportsScreen() {
   const totalRevenue = currentData.reduce((acc, s) => acc + (s.total || 0), 0);
   const totalProfit = currentData.reduce((acc, s) => acc + (s.profit || 0), 0);
 
+  const productSummary = currentData.reduce((acc: any, sale: any) => {
+    sale.itemDetails?.forEach((item: any) => {
+      const key = `${item.name}-${item.unit}`;
+      if (!acc[key]) {
+        acc[key] = { name: item.name, quantity: 0, unit: item.unit, total: 0 };
+      }
+      acc[key].quantity += item.quantity;
+      acc[key].total += item.total;
+    });
+    return acc;
+  }, {});
+
   const renderSalesItem = ({ item }: { item: any }) => (
     <View style={styles.transactionCard}>
       <View style={styles.cardTop}>
@@ -158,7 +189,17 @@ export default function ReportsScreen() {
         </Text>
       </View>
       <Text style={styles.customerLabel}>{item.customer || 'Walk-in'}</Text>
-      <Text style={styles.itemsSummary} numberOfLines={2}>{item.items}</Text>
+      
+      <View style={styles.itemDetailsList}>
+        {item.itemDetails?.map((detail: any, idx: number) => (
+          <View key={idx} style={styles.detailRow}>
+            <Text style={styles.detailName}>{detail.name}</Text>
+            <Text style={styles.detailQty}>{detail.quantity} {detail.unit}</Text>
+            <Text style={styles.detailPrice}>₨{detail.total.toLocaleString()}</Text>
+          </View>
+        ))}
+      </View>
+
       <View style={styles.cardFooter}>
         <View>
           <Text style={styles.footerLabel}>PROFIT</Text>
@@ -286,6 +327,22 @@ export default function ReportsScreen() {
             <Text style={styles.costBadgeText}>Cost-Based</Text>
           </View>
         </LinearGradient>
+      )}
+
+      {/* Product Summary */}
+      {!loading && activeTab !== 'inventory' && Object.keys(productSummary).length > 0 && (
+        <View style={styles.summarySection}>
+          <Text style={styles.summaryTitle}>Item Sales Summary</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.summaryScroll}>
+            {Object.values(productSummary).map((item: any, idx: number) => (
+              <View key={idx} style={styles.summaryItemCard}>
+                <Text style={styles.summaryItemName}>{item.name}</Text>
+                <Text style={styles.summaryItemQty}>{item.quantity} {item.unit}</Text>
+                <Text style={styles.summaryItemTotal}>₨{item.total.toLocaleString()}</Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
       )}
 
       {/* List */}
@@ -462,11 +519,63 @@ const styles = StyleSheet.create({
   typeText: { fontSize: 10, fontWeight: '900' },
   dateText: { fontSize: 10, color: 'rgba(255,255,255,0.3)', fontWeight: '600' },
   customerLabel: {
-    fontSize: 16, fontWeight: '800', color: '#fff', marginBottom: 4,
+    fontSize: 16, fontWeight: '800', color: '#fff', marginBottom: 12,
   },
-  itemsSummary: {
-    fontSize: 12, color: 'rgba(255,255,255,0.35)',
-    marginBottom: 14, lineHeight: 17,
+  itemDetailsList: {
+    marginBottom: 15,
+    gap: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.02)',
+    padding: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.04)',
+  },
+  detailName: {
+    fontSize: 13, fontWeight: '700', color: 'rgba(255,255,255,0.9)',
+    flex: 2,
+  },
+  detailQty: {
+    fontSize: 11, fontWeight: '800', color: Colors.dark.amber,
+    flex: 1, textAlign: 'center',
+  },
+  detailPrice: {
+    fontSize: 12, fontWeight: '800', color: '#fff',
+    flex: 1.2, textAlign: 'right',
+  },
+  summarySection: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  summaryTitle: {
+    fontSize: 13, fontWeight: '900', color: 'rgba(255,255,255,0.4)',
+    textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12,
+  },
+  summaryScroll: {
+    gap: 12,
+  },
+  summaryItemCard: {
+    backgroundColor: 'rgba(16,185,129,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(16,185,129,0.2)',
+    padding: 15,
+    borderRadius: 18,
+    minWidth: 120,
+  },
+  summaryItemName: {
+    fontSize: 13, fontWeight: '800', color: '#fff',
+    marginBottom: 4,
+  },
+  summaryItemQty: {
+    fontSize: 10, fontWeight: '900', color: '#10b981',
+    textTransform: 'uppercase', marginBottom: 8,
+  },
+  summaryItemTotal: {
+    fontSize: 14, fontWeight: '900', color: '#fff',
   },
   cardFooter: {
     flexDirection: 'row', justifyContent: 'space-between',

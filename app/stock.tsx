@@ -50,9 +50,36 @@ export default function StockScreen() {
   const outOfStockItems = products.filter(p => p.stock === 0);
   const healthyItems = products.filter(p => p.stock > p.minStockLevel);
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredProducts = products
+    .filter(p => {
+      if (!search) return true;
+      const searchLower = search.toLowerCase();
+      const nameLower = p.name.toLowerCase();
+      const skuLower = (p.sku || '').toLowerCase();
+      
+      const words = searchLower.split(/\s+/).filter(w => w.length > 0);
+      return words.every(word => nameLower.includes(word) || skuLower.includes(word));
+    })
+    .sort((a, b) => {
+      if (!search) return 0;
+      const searchLower = search.toLowerCase();
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+      const aSku = (a.sku || '').toLowerCase();
+      const bSku = (b.sku || '').toLowerCase();
+
+      const aExact = aName === searchLower || aSku === searchLower;
+      const bExact = bName === searchLower || bSku === searchLower;
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+
+      const aStarts = aName.startsWith(searchLower) || aSku.startsWith(searchLower);
+      const bStarts = bName.startsWith(searchLower) || bSku.startsWith(searchLower);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+
+      return aName.localeCompare(bName);
+    });
 
   const StatCard = ({ title, value, icon: Icon, colors }: any) => (
     <LinearGradient colors={colors} style={styles.statCard} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>

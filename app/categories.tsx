@@ -152,9 +152,33 @@ export default function CategoriesScreen() {
     }
   };
 
-  const filteredCategories = categories.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredCategories = categories
+    .filter(c => {
+      if (!search) return true;
+      const searchLower = search.toLowerCase();
+      const nameLower = c.name.toLowerCase();
+      
+      const words = searchLower.split(/\s+/).filter(w => w.length > 0);
+      return words.every(word => nameLower.includes(word));
+    })
+    .sort((a, b) => {
+      if (!search) return 0;
+      const searchLower = search.toLowerCase();
+      const aName = a.name.toLowerCase();
+      const bName = b.name.toLowerCase();
+
+      const aExact = aName === searchLower;
+      const bExact = bName === searchLower;
+      if (aExact && !bExact) return -1;
+      if (!aExact && bExact) return 1;
+
+      const aStarts = aName.startsWith(searchLower);
+      const bStarts = bName.startsWith(searchLower);
+      if (aStarts && !bStarts) return -1;
+      if (!aStarts && bStarts) return 1;
+
+      return aName.localeCompare(bName);
+    });
 
   return (
     <View style={styles.container}>
