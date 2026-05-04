@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert, Modal, Platform } from 'react-native';
+import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert, Modal, Platform, RefreshControl } from 'react-native';
 import { api } from '../../lib/api';
 import { Colors } from '../../constants/theme';
 import { Search, Plus, Minus, Trash2, ShoppingCart, Scan, X, User, Banknote, CreditCard, ChevronRight } from 'lucide-react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
+import { useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function POSScreen() {
@@ -12,6 +13,7 @@ export default function POSScreen() {
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [isUdhar, setIsUdhar] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [selectedCustomerName, setSelectedCustomerName] = useState<string>('');
@@ -44,9 +46,25 @@ export default function POSScreen() {
     }
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  };
+
   useEffect(() => {
     fetchData();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchData();
+      
+      // Auto-refresh every 30 seconds while screen is focused
+      const interval = setInterval(fetchData, 30000);
+      return () => clearInterval(interval);
+    }, [])
+  );
 
   const addToCart = (product: any) => {
     const existing = cart.find(item => item.id === product.id);
@@ -371,6 +389,9 @@ export default function POSScreen() {
       <FlatList
         data={filteredProducts}
         keyExtractor={(item) => item.id}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.dark.amber} />
+        }
         renderItem={({ item }) => {
           const cartItem = cart.find(c => c.id === item.id);
           return (

@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, FlatList, TextInput, RefreshControl, TouchableO
 import { api } from '../../lib/api';
 import { Colors } from '../../constants/theme';
 import { Search, User, Phone, CreditCard, Plus, X, UserPlus, TrendingDown, Users, AlertCircle, ChevronRight } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function CustomersScreen() {
@@ -32,6 +32,12 @@ export default function CustomersScreen() {
   useEffect(() => {
     fetchCustomers();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchCustomers();
+    }, [])
+  );
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);

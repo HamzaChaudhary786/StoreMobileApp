@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, ScrollView, RefreshControl, TouchableOpacity, P
 import { api } from '../../lib/api';
 import { Colors } from '../../constants/theme';
 import { TrendingUp, Users, Package, AlertCircle, Layers, FileText, BarChart2, ChevronRight, ArrowDownLeft, ArrowUpRight, Clock, ShoppingBag, Activity as ActivityIcon } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface DashboardStats {
@@ -50,6 +50,12 @@ export default function DashboardScreen() {
   useEffect(() => {
     fetchStats();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchStats();
+    }, [])
+  );
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);

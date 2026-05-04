@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, FlatList, TextInput, RefreshControl, TouchableO
 import { api } from '../../lib/api';
 import { Colors } from '../../constants/theme';
 import { Search, Package, AlertTriangle, Plus, Edit2 } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 
 export default function InventoryScreen() {
   const [products, setProducts] = useState<any[]>([]);
@@ -23,6 +23,12 @@ export default function InventoryScreen() {
   useEffect(() => {
     fetchProducts();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchProducts();
+    }, [])
+  );
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);

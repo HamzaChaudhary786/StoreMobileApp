@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, FlatList, TextInput, TouchableOpacity, RefreshC
 import { api } from '../lib/api';
 import { Colors } from '../constants/theme';
 import { ChevronLeft, Package, ArrowUp, ArrowDown, RefreshCcw, Search, AlertTriangle, TrendingUp, Plus, Zap } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function StockScreen() {
@@ -28,6 +28,12 @@ export default function StockScreen() {
   useEffect(() => {
     fetchStock();
   }, []);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchStock();
+    }, [])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
